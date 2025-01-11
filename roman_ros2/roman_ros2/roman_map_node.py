@@ -33,6 +33,7 @@ from roman.map.fastsam_wrapper import FastSAMWrapper
 from roman.map.mapper import Mapper, MapperParams
 from roman.map.map import ROMANMap
 from roman.object.segment import Segment
+from roman.viz import visualize_map_on_img
 
 # relative
 from roman_ros2.utils import observation_from_msg, segment_to_msg, time_stamp_to_float
@@ -41,6 +42,7 @@ class RomanMapNode(Node):
 
     def __init__(self):
         super().__init__('roman_map_node')
+        self.up = True
 
         # ros params
         self.declare_parameters(
@@ -52,10 +54,11 @@ class RomanMapNode(Node):
                 ("max_t_no_sightings", 0.25),
                 ("mask_downsample_factor", 8),
                 ("visualize", False),
-                ("output_map", None),
+                ("output_roman_map", None),
                 ("cam_frame_id", "camera_link"),
                 ("map_frame_id", "map"),
                 ("object_ref", "bottom_middle"),
+                ("T_camera_flu", None),
                 ("viz/num_objs", 20),
                 ("viz/pts_per_obj", 250),
                 ("viz/min_viz_dt", 2.0),
@@ -70,8 +73,14 @@ class RomanMapNode(Node):
         max_t_no_sightings = self.get_parameter("max_t_no_sightings").value
         mask_downsample_factor = self.get_parameter("mask_downsample_factor").value
         self.visualize = self.get_parameter("visualize").value
-        self.output_file = self.get_parameter("output_map").value
+        self.output_file = self.get_parameter("output_roman_map").value
         self.object_ref = self.get_parameter("object_ref").value
+        T_camera_flu = self.get_parameter("T_camera_flu").value
+        if T_camera_flu is not None:
+            T_camera_flu = np.array(T_camera_flu).reshape(4, 4)
+        else:
+            T_camera_flu = np.eye(4)
+
         if self.visualize:
             self.cam_frame_id = self.get_parameter("cam_frame_id").value
             self.map_frame_id = self.get_parameter("map_frame_id").value
@@ -96,7 +105,6 @@ class RomanMapNode(Node):
         self.get_logger().info("RomanMapNode received for color camera info messages...")
 
         mapper_params = MapperParams(
-            camera_params=color_params,
             min_iou=min_iou,
             min_sightings=min_sightings,
             max_t_no_sightings=max_t_no_sightings,
@@ -105,8 +113,10 @@ class RomanMapNode(Node):
             iou_voxel_size=0.5,
         )
         self.mapper = Mapper(
-           mapper_params
+           mapper_params,
+           camera_params=color_params
         )
+        self.mapper.set_T_camera_flu(T_camera_flu)
 
         self.setup_ros()
 
@@ -137,8 +147,14 @@ class RomanMapNode(Node):
         """
         Triggered by incoming observation messages
         """
+        if not self.up:
+            return
+
         # publish pulse
-        self.get_logger().info("Received messages")
+        map_size = len(self.mapper.segments) + \
+                len(self.mapper.inactive_segments) + \
+                len(self.mapper.segment_graveyard)
+        self.get_logger().info(f"Map size: {map_size}")
         self.pulse_pub.publish(std_msgs.Empty())
         
         if len(obs_array_msg.observations) == 0:
@@ -172,6 +188,8 @@ class RomanMapNode(Node):
         """
         Triggered by incoming odometry and image messages
         """
+        if not self.up:
+            return
 
         # rospy.logwarn("Received messages")
         t = time_stamp_to_float(img_msg.header.stamp)
@@ -191,28 +209,7 @@ class RomanMapNode(Node):
 
         # conversion from ros msg to cv img
         img = self.bridge.imgmsg_to_cv2(img_msg, desired_encoding='bgr8')
-        
-        segment: Segment
-        for i, segment in enumerate(self.mapper.segments + self.mapper.inactive_segments + self.mapper.segment_graveyard):
-            # only draw segments seen in the last however many seconds
-            if segment.last_seen < t - self.mapper.params.segment_graveyard_time - 10:
-                continue
-            try:
-                bbox = segment.reprojected_bbox(pose @ self.T_BC)
-            except:
-                continue
-            if bbox is None:
-                continue
-            if i < len(self.mapper.segments):
-                color = (0, 255, 0)
-            elif i < len(self.mapper.segments) + len(self.mapper.inactive_segments):
-                color = (255, 0, 0)
-            else:
-                color = (180, 0, 180)
-            img = cv.rectangle(img, np.array([bbox[0][0], bbox[0][1]]).astype(np.int32), 
-                        np.array([bbox[1][0], bbox[1][1]]).astype(np.int32), color=color, thickness=2)
-            img = cv.putText(img, str(segment.id), (np.array(bbox[0]) + np.array([10., 10.])).astype(np.int32), 
-                            cv.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+        img = visualize_map_on_img(t, pose, img, self.mapper)
             
         if self.viz_rotate_img is not None:
             if self.viz_rotate_img == "CW":
@@ -259,17 +256,12 @@ class RomanMapNode(Node):
         if self.output_file is None:
             print(f"No file to save to.")
         if self.output_file is not None:
+            self.up = False
             print(f"Saving map to {self.output_file}...")
             time.sleep(1.0)
             self.mapper.make_pickle_compatible()
-            data = ROMANMap(
-                segments=self.mapper.get_segment_map(),
-                trajectory=self.pose_history,
-                times=self.time_history,
-                poses_are_flu=True
-            )
             pkl_file = open(self.output_file, 'wb')
-            pickle.dump(data, pkl_file, -1)
+            pickle.dump(self.mapper.get_roman_map(), pkl_file, -1)
             pkl_file.close()
         self.destroy_node()
 

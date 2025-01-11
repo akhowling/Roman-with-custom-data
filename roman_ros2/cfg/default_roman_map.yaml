@@ -1,0 +1,12 @@
+/**:
+  ros__parameters:
+    robot_id: 0
+    visualize: false
+    min_viz_dt: 1.0
+    output_roman_map: ~/roman_map.pkl
+    # default T_camera_flu assumes camera frame is right-down-forward (rdf)
+    T_camera_flu: [
+      0., -1., 0., 0., 
+      0., 0., -1., 0.,
+      1., 0., 0., 0.,
+      0., 0., 0., 1.]

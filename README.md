@@ -1,12 +1,13 @@
 # ROMAN ROS2
 
-This is ROS wrapper code for running `roman` mapping real-time.
-
 <img src="./media/opposite_view_loop_closure.jpg" alt="Opposite view loop closure" width="500"/>
 
 Welcome to roman_ros2, a ROS2 wrapper for [ROMAN](https://acl.mit.edu/ROMAN/) (<ins>R</ins>obust <ins>O</ins>bject <ins>M</ins>ap <ins>A</ins>lignment A<ins>n</ins>ywhere).
 ROMAN is a view-invariant global localization method that maps open-set objects and uses the geometry, shape, and semantics of objects to find the transformation between a current pose and previously created object map.
 This enables loop closure between robots even when a scene is observed from *opposite views.*
+
+Demo videos, the paper, and more can be found at the [ROMAN project website](https://acl.mit.edu/ROMAN-project/). 
+Checkout the main branch for the ROS1 wrapper.
 
 ## Citation
 
@@ -26,14 +27,37 @@ M.B. Peterson, Y.X. Jia, Y. Tian and J.P. How, "ROMAN: Open-Set Object Map Align
 
 # Install
 
-In the root directory of your ROS workspace run:
+First, install the ROMAN python package using the install directions [here](https://github.com/mit-acl/ROMAN?tab=readme-ov-file#install).
+
+Then, in the root directory of your ROS workspace run:
 
 ```
 cd src
 git clone git@github.com:mit-acl/roman_ros.git
+cd roman_ros && git checkout ros2 && cd ..
 git clone git@github.com:Box-Robotics/ros2_numpy.git
 cd ..
 colcon build
+```
+
+# Example use
+
+An example tmux file is included for running ROMAN mapping using D455 RGB-D images.
+
+To run this example, first install `tmuxp` (`sudo apt install tmuxp`) and set the following environment variables:
+
+```
+export ROBOT=<robot name>
+export CAMERA=<camera name>
+export BAG=<path to bag file>
+export ROMAN_WS=<path to ROS2 workspace where roman_ros2 is installed>
+export ACTIVATE_ROMAN_ENV=<command to activate python environment where roman is installed>
+```
+
+Inside of this directory, run the following command to launch ROMAN:
+
+```
+tmuxp load ./roman_ros2/tmux/example.yaml
 ```
 
 ---

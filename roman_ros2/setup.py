@@ -1,4 +1,5 @@
 from setuptools import setup
+from glob import glob
 
 package_name = 'roman_ros2'
 
@@ -10,9 +11,13 @@ setup(
         ('share/ament_index/resource_index/packages',
             ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
-        ('share/' + package_name + '/cfg', ['cfg/default_fastsam.yaml']),
+        ('share/' + package_name + '/launch', glob('launch/*.launch.py')),
+        ('share/' + package_name + '/cfg', glob('cfg/*.yaml')),
     ],
-    install_requires=['setuptools'],
+    install_requires=[
+        'setuptools',
+        'transforms3d'
+    ],
     zip_safe=True,
     maintainer='masonbp',
     maintainer_email='mbpeterson70@gmail.com',
