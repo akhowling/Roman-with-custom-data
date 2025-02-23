@@ -46,12 +46,11 @@ class FastSAMNode(Node):
         self.declare_parameters(
             namespace='',
             parameters=[
-                ("cam_frame_id", None),
                 ("map_frame_id", "map"),
                 ("odom_base_frame_id", "base"),
                 ("fastsam_imgsz", 256),
                 ("fastsam_mask_downsample", 8),
-                ("fastsam_rotate_img", None),
+                ("fastsam_rotate_img", ""),
                 ("fastsam_ignore_people", True),
                 ("fastsam_allow_edges", True),
                 ("fastsam_min_area_div", 30),
@@ -63,7 +62,7 @@ class FastSAMNode(Node):
             ]
         )
 
-        self.cam_frame_id = self.get_parameter("cam_frame_id").value
+        self.cam_frame_id = None
         self.map_frame_id = self.get_parameter("map_frame_id").value
         self.odom_base_frame_id = self.get_parameter("odom_base_frame_id").value
         
@@ -72,6 +71,8 @@ class FastSAMNode(Node):
         fastsam_device = self.get_parameter("fastsam_device").value
         fastsam_mask_downsample = self.get_parameter("fastsam_mask_downsample").value
         fastsam_rotate_img = self.get_parameter("fastsam_rotate_img").value
+        if fastsam_rotate_img == "":
+            fastsam_rotate_img = None
 
         fastsam_ignore_people = self.get_parameter("fastsam_ignore_people").value
         fastsam_allow_edges = self.get_parameter("fastsam_allow_edges").value
@@ -170,6 +171,8 @@ class FastSAMNode(Node):
         
         self.get_logger().info("Received messages")
         img_msg, depth_msg = msgs
+        if self.cam_frame_id is None:
+            self.cam_frame_id = img_msg.header.frame_id
 
         # check that enough time has passed since last observation (to not overwhelm GPU)
         t = rclpy.time.Time.from_msg(img_msg.header.stamp).nanoseconds * 1e-9

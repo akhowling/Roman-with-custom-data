@@ -54,15 +54,16 @@ class RomanMapNode(Node):
                 ("max_t_no_sightings", 0.25),
                 ("mask_downsample_factor", 8),
                 ("visualize", False),
-                ("output_roman_map", None),
+                ("output_roman_map", ""),
                 ("cam_frame_id", "camera_link"),
                 ("map_frame_id", "map"),
                 ("object_ref", "bottom_middle"),
-                ("T_camera_flu", None),
+                ("T_camera_flu", np.eye(4).reshape(-1).tolist()),
+                ("publish_active_segments", False),
                 ("viz/num_objs", 20),
                 ("viz/pts_per_obj", 250),
                 ("viz/min_viz_dt", 2.0),
-                ("viz/rotate_img", None),
+                ("viz/rotate_img", ""),
                 ("viz/pointcloud", False)
             ]
         )
@@ -76,10 +77,8 @@ class RomanMapNode(Node):
         self.output_file = self.get_parameter("output_roman_map").value
         self.object_ref = self.get_parameter("object_ref").value
         T_camera_flu = self.get_parameter("T_camera_flu").value
-        if T_camera_flu is not None:
-            T_camera_flu = np.array(T_camera_flu).reshape(4, 4)
-        else:
-            T_camera_flu = np.eye(4)
+        T_camera_flu = np.array(T_camera_flu).reshape(4, 4)
+        self.publish_active_segments = self.get_parameter("publish_active_segments").value
 
         if self.visualize:
             self.cam_frame_id = self.get_parameter("cam_frame_id").value
@@ -89,12 +88,14 @@ class RomanMapNode(Node):
             self.min_viz_dt = self.get_parameter("viz/min_viz_dt").value
             self.viz_rotate_img = self.get_parameter("viz/rotate_img").value
             self.viz_pointcloud = self.get_parameter("viz/pointcloud").value
-        if self.output_file is not None and self.output_file != "":
+            if self.viz_rotate_img == "":
+                self.viz_rotate_img = None
+        if self.output_file != "":
             self.output_file = os.path.expanduser(self.output_file)
             self.pose_history = []
             self.time_history = []
             self.get_logger().info(f"Output file: {self.output_file}")
-        elif self.output_file == "":
+        else:
             self.output_file = None
 
         # mapper
@@ -175,14 +176,21 @@ class RomanMapNode(Node):
         # publish segments
         segment: Segment
         for segment in self.mapper.inactive_segments:
+            # TODO: this does not include a way to notify of a deleted segment
             if segment.last_seen == t or segment.id in new_inactive_ids:
-                if self.object_ref == 'bottom_middle':
-                    segment.set_center_ref('bottom_middle')
-                self.segments_pub.publish(segment_to_msg(self.robot_id, segment))
+                self.publish_segment(segment)
+        if self.publish_active_segments:
+            for segment in self.mapper.segments:
+                self.publish_segment(segment)
         
         if self.output_file is not None:
             self.pose_history.append(rnp.numpify(obs_array_msg.pose_flu))
             self.time_history.append(t)
+
+    def publish_segment(self, segment: Segment):
+        if self.object_ref == 'bottom_middle':
+            segment.set_center_ref('bottom_middle')
+        self.segments_pub.publish(segment_to_msg(self.robot_id, segment))
 
     def viz_cb(self, img_msg):
         """

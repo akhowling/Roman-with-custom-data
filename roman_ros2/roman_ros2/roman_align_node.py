@@ -17,7 +17,7 @@ import visualization_msgs.msg as visualization_msgs
 from robotdatapy.transform import transform_to_xyzrpy
 
 from roman.object.segment import Segment, SegmentMinimalData
-from roman.align.roman import ROMAN, ROMANParams
+from roman.align.roman_registration import ROMANRegistration, ROMANParams
 from roman.utils import transform_rm_roll_pitch
 
 # Local imports
@@ -61,24 +61,28 @@ class ROMANAlignNode(Node):
         
         super().__init__('roman_align_node')
 
+        # required ros parameters
+        self.declare_parameter("robot1")
+        self.declare_parameter("robot2")
+        self.robot1 = self.get_parameter("robot1").value
+        self.robot2 = self.get_parameter("robot2").value
+        assert self.robot1 is not None and self.robot2 is not None, \
+            "robot1 and robot2 params must be set."
+
         # ros params
         self.declare_parameters(
             namespace='',
             parameters=[
-                ("robot1", None),
-                ("robot2", None),
                 ("time_pass_thresh", 60.0),
                 ("align_dt", 0.5),
-                ("clipper/sigma", 0.3),
-                ("clipper/epsilon", 0.5),
+                ("clipper/sigma", 0.4),
+                ("clipper/epsilon", 0.6),
                 ("clipper/mindist", 0.1),
                 ("clipper/volume_epsilon", 0.0),
                 ("clipper/min_associations", 4)
             ]
         )
         
-        self.robot1 = self.get_parameter("robot1").value
-        self.robot2 = self.get_parameter("robot2").value
         
         self.declare_parameter("frame1", f"{self.robot1}")
         self.declare_parameter("frame2", f"{self.robot2}")
@@ -104,7 +108,7 @@ class ROMANAlignNode(Node):
             pca=True,
             epsilon_shape=clipper_volume_epsilon,
         )
-        self.roman_registration = ROMAN(roman_registration_params)
+        self.roman_registration = ROMANRegistration(roman_registration_params)
         
         self.setup_ros()
         
