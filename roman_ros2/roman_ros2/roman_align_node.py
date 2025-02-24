@@ -62,8 +62,8 @@ class ROMANAlignNode(Node):
         super().__init__('roman_align_node')
 
         # required ros parameters
-        self.declare_parameter("robot1")
-        self.declare_parameter("robot2")
+        self.declare_parameter("robot1", rclpy.parameter.Parameter.Type.STRING)
+        self.declare_parameter("robot2", rclpy.parameter.Parameter.Type.STRING)
         self.robot1 = self.get_parameter("robot1").value
         self.robot2 = self.get_parameter("robot2").value
         assert self.robot1 is not None and self.robot2 is not None, \

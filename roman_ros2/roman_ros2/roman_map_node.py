@@ -110,8 +110,6 @@ class RomanMapNode(Node):
             min_sightings=min_sightings,
             max_t_no_sightings=max_t_no_sightings,
             mask_downsample_factor=mask_downsample_factor,
-            segment_voxel_size=0.2,
-            iou_voxel_size=0.5,
         )
         self.mapper = Mapper(
            mapper_params,

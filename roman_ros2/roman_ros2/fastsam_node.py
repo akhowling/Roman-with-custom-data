@@ -59,6 +59,9 @@ class FastSAMNode(Node):
                 ("fastsam_min_dt", 0.1),
                 ("fastsam_viz", False),
                 ("fastsam_max_depth", 8.0),
+                ("fastsam_depth_scale", 1e3),
+                ("fastsam_voxel_size", 0.05),
+                ("fastsam_pcd_stride", 4),
             ]
         )
 
@@ -80,6 +83,9 @@ class FastSAMNode(Node):
         fastsam_max_area_div = self.get_parameter("fastsam_max_area_div").value
         fastsam_erosion_size = self.get_parameter("fastsam_erosion_size").value
         fastsam_max_depth = self.get_parameter("fastsam_max_depth").value
+        fastsam_depth_scale = self.get_parameter("fastsam_depth_scale").value
+        fastsam_voxel_size = self.get_parameter("fastsam_voxel_size").value
+        fastsam_pcd_stride = self.get_parameter("fastsam_pcd_stride").value
         self.min_dt = self.get_parameter("fastsam_min_dt").value
 
         self.visualize = self.get_parameter("fastsam_viz").value
@@ -110,9 +116,10 @@ class FastSAMNode(Node):
         self.fastsam.setup_rgbd_params(
             depth_cam_params=self.depth_params, 
             max_depth=fastsam_max_depth,
-            depth_scale=1e3,
-            voxel_size=0.05,
-            erosion_size=fastsam_erosion_size
+            depth_scale=fastsam_depth_scale,
+            voxel_size=fastsam_voxel_size,
+            erosion_size=fastsam_erosion_size,
+            pcd_stride=fastsam_pcd_stride
         )
         img_area = self.depth_params.width * self.depth_params.height
         self.fastsam.setup_filtering(
