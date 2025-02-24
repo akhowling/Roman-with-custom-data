@@ -16,8 +16,6 @@ camera_launch_arg = DeclareLaunchArgument('camera')
 topic_remappings = [
     ('color/camera_info', [camera, '/color/camera_info']),
     ('color/image_raw', [camera, '/color/image_raw']),
-    ('depth/camera_info', [camera, '/color/camera_info']), # assumes aligned color/depth images
-    ('depth/image_raw', [camera, '/aligned_depth_to_color/image_raw']),
 ]
 
 tf_remappings = [

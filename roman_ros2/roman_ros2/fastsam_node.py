@@ -46,12 +46,11 @@ class FastSAMNode(Node):
         self.declare_parameters(
             namespace='',
             parameters=[
-                ("cam_frame_id", None),
                 ("map_frame_id", "map"),
                 ("odom_base_frame_id", "base"),
                 ("fastsam_imgsz", 256),
                 ("fastsam_mask_downsample", 8),
-                ("fastsam_rotate_img", None),
+                ("fastsam_rotate_img", ""),
                 ("fastsam_ignore_people", True),
                 ("fastsam_allow_edges", True),
                 ("fastsam_min_area_div", 30),
@@ -60,10 +59,13 @@ class FastSAMNode(Node):
                 ("fastsam_min_dt", 0.1),
                 ("fastsam_viz", False),
                 ("fastsam_max_depth", 8.0),
+                ("fastsam_depth_scale", 1e3),
+                ("fastsam_voxel_size", 0.05),
+                ("fastsam_pcd_stride", 4),
             ]
         )
 
-        self.cam_frame_id = self.get_parameter("cam_frame_id").value
+        self.cam_frame_id = None
         self.map_frame_id = self.get_parameter("map_frame_id").value
         self.odom_base_frame_id = self.get_parameter("odom_base_frame_id").value
         
@@ -72,6 +74,8 @@ class FastSAMNode(Node):
         fastsam_device = self.get_parameter("fastsam_device").value
         fastsam_mask_downsample = self.get_parameter("fastsam_mask_downsample").value
         fastsam_rotate_img = self.get_parameter("fastsam_rotate_img").value
+        if fastsam_rotate_img == "":
+            fastsam_rotate_img = None
 
         fastsam_ignore_people = self.get_parameter("fastsam_ignore_people").value
         fastsam_allow_edges = self.get_parameter("fastsam_allow_edges").value
@@ -79,6 +83,9 @@ class FastSAMNode(Node):
         fastsam_max_area_div = self.get_parameter("fastsam_max_area_div").value
         fastsam_erosion_size = self.get_parameter("fastsam_erosion_size").value
         fastsam_max_depth = self.get_parameter("fastsam_max_depth").value
+        fastsam_depth_scale = self.get_parameter("fastsam_depth_scale").value
+        fastsam_voxel_size = self.get_parameter("fastsam_voxel_size").value
+        fastsam_pcd_stride = self.get_parameter("fastsam_pcd_stride").value
         self.min_dt = self.get_parameter("fastsam_min_dt").value
 
         self.visualize = self.get_parameter("fastsam_viz").value
@@ -109,9 +116,10 @@ class FastSAMNode(Node):
         self.fastsam.setup_rgbd_params(
             depth_cam_params=self.depth_params, 
             max_depth=fastsam_max_depth,
-            depth_scale=1e3,
-            voxel_size=0.05,
-            erosion_size=fastsam_erosion_size
+            depth_scale=fastsam_depth_scale,
+            voxel_size=fastsam_voxel_size,
+            erosion_size=fastsam_erosion_size,
+            pcd_stride=fastsam_pcd_stride
         )
         img_area = self.depth_params.width * self.depth_params.height
         self.fastsam.setup_filtering(
@@ -170,6 +178,8 @@ class FastSAMNode(Node):
         
         self.get_logger().info("Received messages")
         img_msg, depth_msg = msgs
+        if self.cam_frame_id is None:
+            self.cam_frame_id = img_msg.header.frame_id
 
         # check that enough time has passed since last observation (to not overwhelm GPU)
         t = rclpy.time.Time.from_msg(img_msg.header.stamp).nanoseconds * 1e-9
