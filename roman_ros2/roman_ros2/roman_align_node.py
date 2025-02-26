@@ -79,7 +79,8 @@ class ROMANAlignNode(Node):
                 ("clipper/epsilon", 0.6),
                 ("clipper/mindist", 0.1),
                 ("clipper/volume_epsilon", 0.0),
-                ("clipper/min_associations", 4)
+                ("clipper/min_associations", 4),
+                ("estimate_roll_pitch", True),
             ]
         )
         
@@ -96,6 +97,7 @@ class ROMANAlignNode(Node):
         clipper_mindist = self.get_parameter("clipper/mindist").value
         clipper_volume_epsilon = self.get_parameter("clipper/volume_epsilon").value
         self.clipper_min_associations = self.get_parameter("clipper/min_associations").value
+        self.estimate_roll_pitch = self.get_parameter("estimate_roll_pitch").value
         
         # internal variables
         self.seg_maps = {robot: RecentROMANMap(time_pass_thresh=time_pass_thresh) for robot in [self.robot1, self.robot2]}
@@ -165,7 +167,8 @@ class ROMANAlignNode(Node):
 
         # compute frame alignment (the pose of frame2 with respect to frame1)
         T_frame1_frame2 = self.roman_registration.T_align(map1, map2, associations)
-        T_frame1_frame2 = transform_rm_roll_pitch(T_frame1_frame2)
+        if not self.estimate_roll_pitch:
+            T_frame1_frame2 = transform_rm_roll_pitch(T_frame1_frame2)
         xyzrpy = transform_to_xyzrpy(T_frame1_frame2, degrees=True)
         print(f"T^{self.frame1}_{self.frame2} = ")
         print(f"x: {xyzrpy[0]:.2f}, y: {xyzrpy[1]:.2f}, z: {xyzrpy[2]:.2f}, ")
