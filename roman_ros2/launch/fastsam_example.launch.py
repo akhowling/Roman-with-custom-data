@@ -31,6 +31,8 @@ frame_params = {
     'odom_base_frame_id': [robot, '/base'],
 }
 
+config_path_param = {'config_path': os.path.join(get_package_share_directory('roman_ros2'), 'cfg', 'default_fastsam.yaml')}
+
 def generate_launch_description():
     return LaunchDescription([
         Node(
@@ -40,7 +42,7 @@ def generate_launch_description():
             name='fastsam_node',
             output='screen',
             emulate_tty=True,
-            parameters=[os.path.join(get_package_share_directory('roman_ros2'), 'cfg', 'default_fastsam.yaml'), frame_params],
+            parameters=[config_path_param, frame_params],
             remappings=topic_remappings + tf_remappings
         )
 ])

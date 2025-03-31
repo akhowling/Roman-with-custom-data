@@ -26,6 +26,7 @@ from robotdatapy.camera import CameraParams
 
 # ROMAN
 from roman.map.fastsam_wrapper import FastSAMWrapper
+from roman.params.fastsam_params import FastSAMParams
 
 # relative
 from roman_ros2.utils import observation_to_msg
@@ -38,70 +39,27 @@ class FastSAMNode(Node):
         # internal variables
         self.bridge = cv_bridge.CvBridge()
 
-        # required ros parameters
-        self.declare_parameter("fastsam_weights")
-        self.declare_parameter("fastsam_device")
-
         # ros params
         self.declare_parameters(
             namespace='',
             parameters=[
                 ("map_frame_id", "map"),
                 ("odom_base_frame_id", "base"),
-                ("fastsam_imgsz", 256),
-                ("fastsam_mask_downsample", 8),
-                ("fastsam_rotate_img", ""),
-                ("fastsam_ignore_people", True),
-                ("fastsam_allow_edges", True),
-                ("fastsam_min_area_div", 30),
-                ("fastsam_max_area_div", 3),
-                ("fastsam_erosion_size", 3),
-                ("fastsam_min_dt", 0.1),
-                ("fastsam_viz", False),
-                ("fastsam_max_depth", 8.0),
-                ("fastsam_depth_scale", 1e3),
-                ("fastsam_voxel_size", 0.05),
-                ("fastsam_pcd_stride", 4),
+                ("config_path", ""),
+                ("min_dt", 0.1),
+                # ("fastsam_viz", False),
             ]
         )
 
         self.cam_frame_id = None
         self.map_frame_id = self.get_parameter("map_frame_id").value
         self.odom_base_frame_id = self.get_parameter("odom_base_frame_id").value
-        
-        fastsam_weights_path = self.get_parameter("fastsam_weights").value
-        fastsam_imgsz = self.get_parameter("fastsam_imgsz").value
-        fastsam_device = self.get_parameter("fastsam_device").value
-        fastsam_mask_downsample = self.get_parameter("fastsam_mask_downsample").value
-        fastsam_rotate_img = self.get_parameter("fastsam_rotate_img").value
-        if fastsam_rotate_img == "":
-            fastsam_rotate_img = None
+        self.min_dt = self.get_parameter("min_dt").value
+        config_path = self.get_parameter("config_path").value
 
-        fastsam_ignore_people = self.get_parameter("fastsam_ignore_people").value
-        fastsam_allow_edges = self.get_parameter("fastsam_allow_edges").value
-        fastsam_min_area_div = self.get_parameter("fastsam_min_area_div").value
-        fastsam_max_area_div = self.get_parameter("fastsam_max_area_div").value
-        fastsam_erosion_size = self.get_parameter("fastsam_erosion_size").value
-        fastsam_max_depth = self.get_parameter("fastsam_max_depth").value
-        fastsam_depth_scale = self.get_parameter("fastsam_depth_scale").value
-        fastsam_voxel_size = self.get_parameter("fastsam_voxel_size").value
-        fastsam_pcd_stride = self.get_parameter("fastsam_pcd_stride").value
-        self.min_dt = self.get_parameter("fastsam_min_dt").value
-
-        self.visualize = self.get_parameter("fastsam_viz").value
+        # self.visualize = self.get_parameter("fastsam_viz").value
+        self.visualize = False # TODO: is supporting this helpful?
         self.last_t = -np.inf
-
-        assert fastsam_weights_path is not None, "fastsam_weights parameter must be set"
-        assert fastsam_device is not None, "fastsam_device parameter must be set"
-
-        # fastsam wrapper
-        self.fastsam = FastSAMWrapper(
-            weights=os.path.expanduser(os.path.expandvars(fastsam_weights_path)),
-            imgsz=fastsam_imgsz,
-            device=fastsam_device,
-            mask_downsample_factor=fastsam_mask_downsample,
-            rotate_img=fastsam_rotate_img
-        )
 
         # FastSAM set up after camera info can be retrieved
         self.get_logger().info("Waiting for depth camera info messages...")
@@ -112,22 +70,10 @@ class FastSAMNode(Node):
         self.get_logger().info("Received for color camera info messages...")
         self.depth_params = CameraParams.from_msg(depth_info_msg)
         color_params = CameraParams.from_msg(color_info_msg)
-        
-        self.fastsam.setup_rgbd_params(
-            depth_cam_params=self.depth_params, 
-            max_depth=fastsam_max_depth,
-            depth_scale=fastsam_depth_scale,
-            voxel_size=fastsam_voxel_size,
-            erosion_size=fastsam_erosion_size,
-            pcd_stride=fastsam_pcd_stride
-        )
-        img_area = self.depth_params.width * self.depth_params.height
-        self.fastsam.setup_filtering(
-            ignore_labels=['person'] if fastsam_ignore_people else [],
-            yolo_det_img_size=(128, 128) if fastsam_ignore_people else None,
-            allow_tblr_edges=[True, True, True, True] if fastsam_allow_edges else [False, False, False, False],
-            area_bounds=[img_area / (fastsam_min_area_div**2), img_area / (fastsam_max_area_div**2)]
-        )
+
+        # fastsam wrapper
+        fastsam_params = FastSAMParams.from_yaml(config_path)
+        self.fastsam = FastSAMWrapper.from_params(fastsam_params, self.depth_params)
 
         self.setup_ros()
 
