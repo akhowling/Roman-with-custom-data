@@ -24,7 +24,6 @@ tf_remappings = [
 ]
 
 frame_params = {
-    'cam_frame_id': [robot, '/', camera, '_color_optical_frame'],
     'map_frame_id': [robot, '/odom'],
     'odom_base_frame_id': [robot, '/base'],
 }

@@ -55,7 +55,6 @@ class RomanMapNode(Node):
                 ("mask_downsample_factor", 8),
                 ("visualize", False),
                 ("output_roman_map", ""),
-                ("cam_frame_id", "camera_link"),
                 ("map_frame_id", "map"),
                 ("object_ref", "bottom_middle"),
                 ("T_camera_flu", np.eye(4).reshape(-1).tolist()),
@@ -81,7 +80,6 @@ class RomanMapNode(Node):
         self.publish_active_segments = self.get_parameter("publish_active_segments").value
 
         if self.visualize:
-            self.cam_frame_id = self.get_parameter("cam_frame_id").value
             self.map_frame_id = self.get_parameter("map_frame_id").value
             self.viz_num_objs = self.get_parameter("viz/num_objs").value
             self.viz_pts_per_obj = self.get_parameter("viz/pts_per_obj").value
@@ -203,9 +201,11 @@ class RomanMapNode(Node):
             return
         else:
             self.last_viz_t = t
+            
+        cam_frame_id = img_msg.header.frame_id
 
         try:
-            transform_stamped_msg = self.tf_buffer.lookup_transform(self.map_frame_id, self.cam_frame_id, img_msg.header.stamp, rclpy.duration.Duration(seconds=2.0))
+            transform_stamped_msg = self.tf_buffer.lookup_transform(self.map_frame_id, cam_frame_id, img_msg.header.stamp, rclpy.duration.Duration(seconds=2.0))
         except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException) as ex:
             self.get_logger().warning("tf lookup failed")
             print(ex)
