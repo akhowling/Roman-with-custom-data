@@ -21,6 +21,7 @@ import geometry_msgs.msg as geometry_msgs
 import nav_msgs.msg as nav_msgs
 import sensor_msgs.msg as sensor_msgs
 import roman_msgs.msg as roman_msgs
+from ros_system_monitor_msgs.msg import NodeInfoMsg
 
 # robot_utils
 from robotdatapy.camera import CameraParams
@@ -48,6 +49,7 @@ class FastSAMNode(Node):
                 ("odom_base_frame_id", "base"),
                 ("config_path", ""),
                 ("min_dt", 0.1),
+                ("nickname", "fastsam")
                 # ("fastsam_viz", False),
             ]
         )
@@ -56,6 +58,7 @@ class FastSAMNode(Node):
         self.map_frame_id = self.get_parameter("map_frame_id").value
         self.odom_base_frame_id = self.get_parameter("odom_base_frame_id").value
         self.min_dt = self.get_parameter("min_dt").value
+        self.nickname = self.get_parameter("nickname").value
         config_path = self.get_parameter("config_path").value
 
         # self.visualize = self.get_parameter("fastsam_viz").value
@@ -63,12 +66,13 @@ class FastSAMNode(Node):
         self.last_t = -np.inf
 
         # FastSAM set up after camera info can be retrieved
-        self.get_logger().info("Waiting for depth camera info messages...")
+        self.status_pub = self.create_publisher(NodeInfoMsg, "roman/fastsam/status", qos_profile=QoSProfile(depth=10))
+        self.log_and_send_status("Waiting for camera info messages...", status=NodeInfoMsg.STARTUP)
         depth_info_msg = self._wait_for_message("depth/camera_info", sensor_msgs.CameraInfo)
-        self.get_logger().info("Received for depth camera info messages...")
-        self.get_logger().info("Waiting for color camera info messages...")
+        self.log_and_send_status("Received for depth camera info messages...", status=NodeInfoMsg.STARTUP)
+        self.log_and_send_status("Waiting for color camera info messages...", status=NodeInfoMsg.STARTUP)
         color_info_msg = self._wait_for_message("color/camera_info", sensor_msgs.CameraInfo)
-        self.get_logger().info("Received for color camera info messages...")
+        self.log_and_send_status("Received for color camera info messages...", status=NodeInfoMsg.STARTUP)
         self.depth_params = CameraParams.from_msg(depth_info_msg)
         color_params = CameraParams.from_msg(color_info_msg)
 
@@ -88,7 +92,6 @@ class FastSAMNode(Node):
         while self._wait_for_message_msg is None:
             rclpy.spin_once(self)
         msg = self._wait_for_message_msg
-        # subscription.destroy()
 
         return msg
     
@@ -97,6 +100,12 @@ class FastSAMNode(Node):
         return
 
     def setup_ros(self):
+        
+        # ros publishers
+        self.obs_pub = self.create_publisher(roman_msgs.ObservationArray, "roman/observations", qos_profile=QoSProfile(depth=10))
+
+        if self.visualize:
+            self.ptcld_pub = self.create_publisher(sensor_msgs.PointCloud, "roman/observations/ptcld")
 
         self.tf_buffer = tf2_ros.Buffer()
         self.tf_listener = tf2_ros.TransformListener(self.tf_buffer, self)
@@ -108,14 +117,8 @@ class FastSAMNode(Node):
         ]
         self.ts = message_filters.ApproximateTimeSynchronizer(subs, queue_size=10, slop=0.1)
         self.ts.registerCallback(self.cb) # registers incoming messages to callback
-
-        # ros publishers
-        self.obs_pub = self.create_publisher(roman_msgs.ObservationArray, "roman/observations", qos_profile=QoSProfile(depth=10))
-
-        if self.visualize:
-            self.ptcld_pub = self.create_publisher(sensor_msgs.PointCloud, "roman/observations/ptcld")
-
-        self.get_logger().info("FastSAM node setup complete.")
+        
+        self.log_and_send_status("FastSAM node setup complete.")
 
     def cb(self, *msgs):
         """
@@ -140,7 +143,7 @@ class FastSAMNode(Node):
             transform_stamped_msg = self.tf_buffer.lookup_transform(self.map_frame_id, self.cam_frame_id, img_msg.header.stamp, rclpy.duration.Duration(seconds=2.0))
             flu_transformed_stamped_msg = self.tf_buffer.lookup_transform(self.map_frame_id, self.odom_base_frame_id, img_msg.header.stamp, rclpy.duration.Duration(seconds=0.1))
         except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException) as ex:
-            self.get_logger().warning("tf lookup failed")
+            self.log_and_send_status("tf lookup failed", status=NodeInfoMsg.WARNING)
             self.get_logger().warning(str(ex))
             return       
          
@@ -164,32 +167,24 @@ class FastSAMNode(Node):
             observations=observation_msgs
         )
         self.obs_pub.publish(observation_array)
+        self.log_and_send_status("Processed callback", status=NodeInfoMsg.NOMINAL)
 
         # if self.visualize:
         #     self.pub_ptclds(observations, img_msg.header, depth)
 
         return
     
-    # def pub_ptclds(self, observations, header, depth):
-    #     points_msg = sensor_msgs.PointCloud()
-    #     points_msg.header = header
-    #     points_msg.header.frame_id = self.cam_frame_id
-    #     points_msg.points = []
-    #     points_msg.channels = [sensor_msgs.ChannelFloat32(name='rgb', values=[])]
-
-    #     for i, obs in enumerate(observations):
-    #         # color
-    #         color_unpacked = np.random.rand(3)*256
-    #         color_raw = int(color_unpacked[0]*256**2 + color_unpacked[1]*256 + color_unpacked[2])
-    #         color_packed = struct.unpack('f', struct.pack('i', color_raw))[0]
-            
-    #         points = obs.point_cloud
-    #         sampled_points = np.random.choice(len(points), min(len(points), 100), replace=True)
-    #         points = [points[i] for i in sampled_points]
-    #         points_msg.points += [geometry_msgs.Point32(x=p[0], y=p[1], z=p[2]) for p in points]
-    #         points_msg.channels[0].values += [color_packed for _ in points]
-        
-    #     self.ptcld_pub.publish(points_msg)
+    def log_and_send_status(self, note, status=NodeInfoMsg.NOMINAL):
+        """
+        Log a message and send it to the status topic.
+        """
+        self.get_logger().info(note)
+        status_msg = NodeInfoMsg()
+        status_msg.nickname = self.nickname
+        status_msg.node_name = self.get_fully_qualified_name()
+        status_msg.status = status
+        status_msg.notes = note
+        self.status_pub.publish(status_msg)
 
 def main():
 

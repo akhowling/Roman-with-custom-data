@@ -25,6 +25,7 @@ import geometry_msgs.msg as geometry_msgs
 import nav_msgs.msg as nav_msgs
 import sensor_msgs.msg as sensor_msgs
 import roman_msgs.msg as roman_msgs
+from ros_system_monitor_msgs.msg import NodeInfoMsg
 
 # robot_utils
 from robotdatapy.camera import CameraParams
@@ -60,6 +61,7 @@ class RomanMapNode(Node):
                 ("object_ref", "bottom_middle"),
                 ("T_camera_flu", np.eye(4).reshape(-1).tolist()),
                 ("publish_active_segments", False),
+                ("nickname", "roman_map"),
                 ("viz_num_objs", 20),
                 ("viz_pts_per_obj", 250),
                 ("viz_min_viz_dt", 2.0),
@@ -79,6 +81,7 @@ class RomanMapNode(Node):
         T_camera_flu = self.get_parameter("T_camera_flu").value
         T_camera_flu = np.array(T_camera_flu).reshape(4, 4)
         self.publish_active_segments = self.get_parameter("publish_active_segments").value
+        self.nickname = self.get_parameter("nickname").value
 
         if self.visualize:
             self.map_frame_id = self.get_parameter("map_frame_id").value
@@ -98,11 +101,12 @@ class RomanMapNode(Node):
             self.output_file = None
 
         # mapper
-        self.get_logger().info("RomanMapNode setting up mapping...")
-        self.get_logger().info("RomanMapNode waiting for color camera info messages...")
+        self.status_pub = self.create_publisher(NodeInfoMsg, "roman/roman_map/status", qos_profile=QoSProfile(depth=10))
+        self.log_and_send_status("RomanMapNode setting up mapping...", status=NodeInfoMsg.STARTUP)
+        self.log_and_send_status("RomanMapNode waiting for color camera info messages...", status=NodeInfoMsg.STARTUP)
         color_info_msg = self._wait_for_message("color/camera_info", sensor_msgs.CameraInfo)
         color_params = CameraParams.from_msg(color_info_msg)
-        self.get_logger().info("RomanMapNode received for color camera info messages...")
+        self.log_and_send_status("RomanMapNode received for color camera info messages...", status=NodeInfoMsg.STARTUP)
 
         mapper_params = MapperParams(
             min_iou=min_iou,
@@ -120,12 +124,12 @@ class RomanMapNode(Node):
 
     def setup_ros(self):
         
-        # ros subscribers
-        self.create_subscription(roman_msgs.ObservationArray, "roman/observations", self.obs_cb, 10)
-
         # ros publishers
         self.segments_pub = self.create_publisher(roman_msgs.Segment, "roman/segment_updates", qos_profile=10)
         self.pulse_pub = self.create_publisher(std_msgs.Empty, "roman/pulse", qos_profile=10)
+
+        # ros subscribers
+        self.create_subscription(roman_msgs.ObservationArray, "roman/observations", self.obs_cb, 10)
 
         # visualization
         if self.visualize:
@@ -138,8 +142,8 @@ class RomanMapNode(Node):
             self.annotated_img_pub = self.create_publisher(sensor_msgs.Image, "roman/annotated_img", qos_profile=10)
             self.object_points_pub = self.create_publisher(sensor_msgs.PointCloud, "roman/object_points", qos_profile=10)
 
-        self.get_logger().info("ROMAN Map Node setup complete.")
-        self.get_logger().info("Waiting for observation.")
+        self.log_and_send_status("ROMAN Map Node setup complete.", status=NodeInfoMsg.STARTUP)
+        self.log_and_send_status("Waiting for observation.", status=NodeInfoMsg.STARTUP)
 
     def obs_cb(self, obs_array_msg):
         """
@@ -152,7 +156,7 @@ class RomanMapNode(Node):
         map_size = len(self.mapper.segments) + \
                 len(self.mapper.inactive_segments) + \
                 len(self.mapper.segment_graveyard)
-        self.get_logger().info(f"Map size: {map_size}")
+        self.log_and_send_status(f"Map size: {map_size}")
         self.pulse_pub.publish(std_msgs.Empty())
         
         if len(obs_array_msg.observations) == 0:
@@ -228,6 +232,18 @@ class RomanMapNode(Node):
         
         img_msg = self.bridge.cv2_to_imgmsg(img, encoding="bgr8")
         self.annotated_img_pub.publish(img_msg)
+        
+    def log_and_send_status(self, note, status=NodeInfoMsg.NOMINAL):
+        """
+        Log a message and send it to the status topic.
+        """
+        self.get_logger().info(note)
+        status_msg = NodeInfoMsg()
+        status_msg.nickname = self.nickname
+        status_msg.node_name = self.get_fully_qualified_name()
+        status_msg.status = status
+        status_msg.notes = note
+        self.status_pub.publish(status_msg)
 
         # Point cloud publishing
         # points_msg = sensor_msgs.PointCloud()
