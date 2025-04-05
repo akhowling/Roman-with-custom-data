@@ -17,6 +17,7 @@ import ros2_numpy as rnp
 from rcl_interfaces.msg import ParameterDescriptor
 from rclpy.qos import QoSProfile
 import tf2_ros
+from rclpy.executors import MultiThreadedExecutor
 
 # ROS msgs
 import std_msgs.msg as std_msgs
@@ -59,11 +60,11 @@ class RomanMapNode(Node):
                 ("object_ref", "bottom_middle"),
                 ("T_camera_flu", np.eye(4).reshape(-1).tolist()),
                 ("publish_active_segments", False),
-                ("viz/num_objs", 20),
-                ("viz/pts_per_obj", 250),
-                ("viz/min_viz_dt", 2.0),
-                ("viz/rotate_img", ""),
-                ("viz/pointcloud", False)
+                ("viz_num_objs", 20),
+                ("viz_pts_per_obj", 250),
+                ("viz_min_viz_dt", 2.0),
+                ("viz_rotate_img", ""),
+                ("viz_pointcloud", False)
             ]
         )
 
@@ -81,11 +82,11 @@ class RomanMapNode(Node):
 
         if self.visualize:
             self.map_frame_id = self.get_parameter("map_frame_id").value
-            self.viz_num_objs = self.get_parameter("viz/num_objs").value
-            self.viz_pts_per_obj = self.get_parameter("viz/pts_per_obj").value
-            self.min_viz_dt = self.get_parameter("viz/min_viz_dt").value
-            self.viz_rotate_img = self.get_parameter("viz/rotate_img").value
-            self.viz_pointcloud = self.get_parameter("viz/pointcloud").value
+            self.viz_num_objs = self.get_parameter("viz_num_objs").value
+            self.viz_pts_per_obj = self.get_parameter("viz_pts_per_obj").value
+            self.min_viz_dt = self.get_parameter("viz_min_viz_dt").value
+            self.viz_rotate_img = self.get_parameter("viz_rotate_img").value
+            self.viz_pointcloud = self.get_parameter("viz_pointcloud").value
             if self.viz_rotate_img == "":
                 self.viz_rotate_img = None
         if self.output_file != "":
@@ -208,7 +209,7 @@ class RomanMapNode(Node):
             transform_stamped_msg = self.tf_buffer.lookup_transform(self.map_frame_id, cam_frame_id, img_msg.header.stamp, rclpy.duration.Duration(seconds=2.0))
         except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException) as ex:
             self.get_logger().warning("tf lookup failed")
-            print(ex)
+            self.get_logger().warning(str(ex))
             return
 
         pose = rnp.numpify(transform_stamped_msg.transform).astype(np.float64)
@@ -295,12 +296,13 @@ def main():
     node = RomanMapNode()
 
     # signal.signal(signal.SIGINT, node.shutdown)
+    executor = MultiThreadedExecutor()
+    executor.add_node(node)
     try:
-        rclpy.spin(node)
-    except:
+        executor.spin()
+    finally:
         node.shutdown()
-
-    rclpy.shutdown()
+        rclpy.shutdown()
 
 if __name__ == "__main__":
     main()

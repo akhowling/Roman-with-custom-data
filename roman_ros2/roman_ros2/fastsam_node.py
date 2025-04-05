@@ -14,6 +14,7 @@ import ros2_numpy as rnp
 from rcl_interfaces.msg import ParameterDescriptor
 from rclpy.qos import QoSProfile
 import tf2_ros
+from rclpy.executors import MultiThreadedExecutor
 
 # ROS msgs
 import geometry_msgs.msg as geometry_msgs
@@ -140,7 +141,7 @@ class FastSAMNode(Node):
             flu_transformed_stamped_msg = self.tf_buffer.lookup_transform(self.map_frame_id, self.odom_base_frame_id, img_msg.header.stamp, rclpy.duration.Duration(seconds=0.1))
         except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException) as ex:
             self.get_logger().warning("tf lookup failed")
-            print(ex)
+            self.get_logger().warning(str(ex))
             return       
          
         pose = rnp.numpify(transform_stamped_msg.transform).astype(np.float64)
@@ -194,10 +195,14 @@ def main():
 
     rclpy.init()
     node = FastSAMNode()
-    rclpy.spin(node)
-
-    node.destroy_node()
-    rclpy.shutdown()
+    executor = MultiThreadedExecutor()
+    executor.add_node(node)
+    try:
+        executor.spin()
+    finally:
+        node.destroy_node()
+        rclpy.shutdown()
+    
 
 if __name__ == "__main__":
     main()
