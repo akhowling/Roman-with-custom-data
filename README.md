@@ -32,11 +32,8 @@ First, install the ROMAN python package using the install directions [here](http
 Then, in the root directory of your ROS workspace run:
 
 ```
-cd src
-git clone git@github.com:mit-acl/roman_ros.git
-cd roman_ros && git checkout ros2 && cd ..
-git clone git@github.com:Box-Robotics/ros2_numpy.git
-cd ..
+git clone -b ros2 git@github.com:mit-acl/roman_ros.git src/roman_ros2
+vcs import src < src/roman_ros2/install/packages.yaml
 colcon build
 ```
 

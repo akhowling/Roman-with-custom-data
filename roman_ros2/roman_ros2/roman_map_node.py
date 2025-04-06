@@ -17,6 +17,7 @@ import ros2_numpy as rnp
 from rcl_interfaces.msg import ParameterDescriptor
 from rclpy.qos import QoSProfile
 import tf2_ros
+from rclpy.executors import MultiThreadedExecutor
 
 # ROS msgs
 import std_msgs.msg as std_msgs
@@ -24,6 +25,7 @@ import geometry_msgs.msg as geometry_msgs
 import nav_msgs.msg as nav_msgs
 import sensor_msgs.msg as sensor_msgs
 import roman_msgs.msg as roman_msgs
+from ros_system_monitor_msgs.msg import NodeInfoMsg
 
 # robot_utils
 from robotdatapy.camera import CameraParams
@@ -55,16 +57,16 @@ class RomanMapNode(Node):
                 ("mask_downsample_factor", 8),
                 ("visualize", False),
                 ("output_roman_map", ""),
-                ("cam_frame_id", "camera_link"),
                 ("map_frame_id", "map"),
                 ("object_ref", "bottom_middle"),
                 ("T_camera_flu", np.eye(4).reshape(-1).tolist()),
                 ("publish_active_segments", False),
-                ("viz/num_objs", 20),
-                ("viz/pts_per_obj", 250),
-                ("viz/min_viz_dt", 2.0),
-                ("viz/rotate_img", ""),
-                ("viz/pointcloud", False)
+                ("nickname", "roman_map"),
+                ("viz_num_objs", 20),
+                ("viz_pts_per_obj", 250),
+                ("viz_min_viz_dt", 2.0),
+                ("viz_rotate_img", ""),
+                ("viz_pointcloud", False)
             ]
         )
 
@@ -79,15 +81,15 @@ class RomanMapNode(Node):
         T_camera_flu = self.get_parameter("T_camera_flu").value
         T_camera_flu = np.array(T_camera_flu).reshape(4, 4)
         self.publish_active_segments = self.get_parameter("publish_active_segments").value
+        self.nickname = self.get_parameter("nickname").value
 
         if self.visualize:
-            self.cam_frame_id = self.get_parameter("cam_frame_id").value
             self.map_frame_id = self.get_parameter("map_frame_id").value
-            self.viz_num_objs = self.get_parameter("viz/num_objs").value
-            self.viz_pts_per_obj = self.get_parameter("viz/pts_per_obj").value
-            self.min_viz_dt = self.get_parameter("viz/min_viz_dt").value
-            self.viz_rotate_img = self.get_parameter("viz/rotate_img").value
-            self.viz_pointcloud = self.get_parameter("viz/pointcloud").value
+            self.viz_num_objs = self.get_parameter("viz_num_objs").value
+            self.viz_pts_per_obj = self.get_parameter("viz_pts_per_obj").value
+            self.min_viz_dt = self.get_parameter("viz_min_viz_dt").value
+            self.viz_rotate_img = self.get_parameter("viz_rotate_img").value
+            self.viz_pointcloud = self.get_parameter("viz_pointcloud").value
             if self.viz_rotate_img == "":
                 self.viz_rotate_img = None
         if self.output_file != "":
@@ -99,11 +101,12 @@ class RomanMapNode(Node):
             self.output_file = None
 
         # mapper
-        self.get_logger().info("RomanMapNode setting up mapping...")
-        self.get_logger().info("RomanMapNode waiting for color camera info messages...")
+        self.status_pub = self.create_publisher(NodeInfoMsg, "roman/roman_map/status", qos_profile=QoSProfile(depth=10))
+        self.log_and_send_status("RomanMapNode setting up mapping...", status=NodeInfoMsg.STARTUP)
+        self.log_and_send_status("RomanMapNode waiting for color camera info messages...", status=NodeInfoMsg.STARTUP)
         color_info_msg = self._wait_for_message("color/camera_info", sensor_msgs.CameraInfo)
         color_params = CameraParams.from_msg(color_info_msg)
-        self.get_logger().info("RomanMapNode received for color camera info messages...")
+        self.log_and_send_status("RomanMapNode received for color camera info messages...", status=NodeInfoMsg.STARTUP)
 
         mapper_params = MapperParams(
             min_iou=min_iou,
@@ -121,12 +124,12 @@ class RomanMapNode(Node):
 
     def setup_ros(self):
         
-        # ros subscribers
-        self.create_subscription(roman_msgs.ObservationArray, "roman/observations", self.obs_cb, 10)
-
         # ros publishers
         self.segments_pub = self.create_publisher(roman_msgs.Segment, "roman/segment_updates", qos_profile=10)
         self.pulse_pub = self.create_publisher(std_msgs.Empty, "roman/pulse", qos_profile=10)
+
+        # ros subscribers
+        self.create_subscription(roman_msgs.ObservationArray, "roman/observations", self.obs_cb, 10)
 
         # visualization
         if self.visualize:
@@ -139,8 +142,8 @@ class RomanMapNode(Node):
             self.annotated_img_pub = self.create_publisher(sensor_msgs.Image, "roman/annotated_img", qos_profile=10)
             self.object_points_pub = self.create_publisher(sensor_msgs.PointCloud, "roman/object_points", qos_profile=10)
 
-        self.get_logger().info("ROMAN Map Node setup complete.")
-        self.get_logger().info("Waiting for observation.")
+        self.log_and_send_status("ROMAN Map Node setup complete.", status=NodeInfoMsg.STARTUP)
+        self.log_and_send_status("Waiting for observation.", status=NodeInfoMsg.STARTUP)
 
     def obs_cb(self, obs_array_msg):
         """
@@ -153,7 +156,7 @@ class RomanMapNode(Node):
         map_size = len(self.mapper.segments) + \
                 len(self.mapper.inactive_segments) + \
                 len(self.mapper.segment_graveyard)
-        self.get_logger().info(f"Map size: {map_size}")
+        self.log_and_send_status(f"Map size: {map_size}")
         self.pulse_pub.publish(std_msgs.Empty())
         
         if len(obs_array_msg.observations) == 0:
@@ -203,12 +206,14 @@ class RomanMapNode(Node):
             return
         else:
             self.last_viz_t = t
+            
+        cam_frame_id = img_msg.header.frame_id
 
         try:
-            transform_stamped_msg = self.tf_buffer.lookup_transform(self.map_frame_id, self.cam_frame_id, img_msg.header.stamp, rclpy.duration.Duration(seconds=2.0))
+            transform_stamped_msg = self.tf_buffer.lookup_transform(self.map_frame_id, cam_frame_id, img_msg.header.stamp, rclpy.duration.Duration(seconds=2.0))
         except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException) as ex:
             self.get_logger().warning("tf lookup failed")
-            print(ex)
+            self.get_logger().warning(str(ex))
             return
 
         pose = rnp.numpify(transform_stamped_msg.transform).astype(np.float64)
@@ -227,6 +232,18 @@ class RomanMapNode(Node):
         
         img_msg = self.bridge.cv2_to_imgmsg(img, encoding="bgr8")
         self.annotated_img_pub.publish(img_msg)
+        
+    def log_and_send_status(self, note, status=NodeInfoMsg.NOMINAL):
+        """
+        Log a message and send it to the status topic.
+        """
+        self.get_logger().info(note)
+        status_msg = NodeInfoMsg()
+        status_msg.nickname = self.nickname
+        status_msg.node_name = self.get_fully_qualified_name()
+        status_msg.status = status
+        status_msg.notes = note
+        self.status_pub.publish(status_msg)
 
         # Point cloud publishing
         # points_msg = sensor_msgs.PointCloud()
@@ -295,12 +312,13 @@ def main():
     node = RomanMapNode()
 
     # signal.signal(signal.SIGINT, node.shutdown)
+    executor = MultiThreadedExecutor()
+    executor.add_node(node)
     try:
-        rclpy.spin(node)
-    except:
+        executor.spin()
+    finally:
         node.shutdown()
-
-    rclpy.shutdown()
+        rclpy.shutdown()
 
 if __name__ == "__main__":
     main()

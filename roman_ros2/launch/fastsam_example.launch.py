@@ -8,9 +8,13 @@ from ament_index_python.packages import get_package_share_directory
 
 robot = LaunchConfiguration('robot')
 camera = LaunchConfiguration('camera')
+config_path = LaunchConfiguration('config_path')
 
 robot_launch_arg = DeclareLaunchArgument('robot')
 camera_launch_arg = DeclareLaunchArgument('camera')
+config_path_launch_arg = DeclareLaunchArgument('config_path',
+    default_value=os.path.join(
+    get_package_share_directory('roman_ros2'), 'cfg', 'default_fastsam.yaml'))
 
 
 topic_remappings = [
@@ -31,8 +35,13 @@ frame_params = {
     'odom_base_frame_id': [robot, '/base'],
 }
 
+config_path_param = {'config_path': config_path}
+
 def generate_launch_description():
     return LaunchDescription([
+        robot_launch_arg,
+        camera_launch_arg,
+        config_path_launch_arg,
         Node(
             package='roman_ros2',
             namespace=robot,
@@ -40,7 +49,7 @@ def generate_launch_description():
             name='fastsam_node',
             output='screen',
             emulate_tty=True,
-            parameters=[os.path.join(get_package_share_directory('roman_ros2'), 'cfg', 'default_fastsam.yaml'), frame_params],
+            parameters=[config_path_param, frame_params],
             remappings=topic_remappings + tf_remappings
         )
 ])
