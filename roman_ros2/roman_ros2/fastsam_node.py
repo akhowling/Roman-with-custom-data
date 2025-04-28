@@ -77,7 +77,11 @@ class FastSAMNode(Node):
         color_params = CameraParams.from_msg(color_info_msg)
 
         # fastsam wrapper
-        fastsam_params = FastSAMParams.from_yaml(config_path)
+        if config_path != "":
+            fastsam_params = FastSAMParams.from_yaml(config_path)
+        else:
+            fastsam_params = FastSAMParams()
+            
         self.fastsam = FastSAMWrapper.from_params(fastsam_params, self.depth_params)
 
         self.setup_ros()
