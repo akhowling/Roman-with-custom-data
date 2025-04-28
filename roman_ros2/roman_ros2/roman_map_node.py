@@ -51,10 +51,7 @@ class RomanMapNode(Node):
             namespace='',
             parameters=[
                 ("robot_id", 0),
-                ("min_iou", 0.25),
-                ("min_sightings", 2),
-                ("max_t_no_sightings", 0.25),
-                ("mask_downsample_factor", 8),
+                ("config_path", ""),
                 ("visualize", False),
                 ("output_roman_map", ""),
                 ("map_frame_id", "map"),
@@ -71,10 +68,6 @@ class RomanMapNode(Node):
         )
 
         self.robot_id = self.get_parameter("robot_id").value
-        min_iou = self.get_parameter("min_iou").value
-        min_sightings = self.get_parameter("min_sightings").value
-        max_t_no_sightings = self.get_parameter("max_t_no_sightings").value
-        mask_downsample_factor = self.get_parameter("mask_downsample_factor").value
         self.visualize = self.get_parameter("visualize").value
         self.output_file = self.get_parameter("output_roman_map").value
         self.object_ref = self.get_parameter("object_ref").value
@@ -82,6 +75,7 @@ class RomanMapNode(Node):
         T_camera_flu = np.array(T_camera_flu).reshape(4, 4)
         self.publish_active_segments = self.get_parameter("publish_active_segments").value
         self.nickname = self.get_parameter("nickname").value
+        config_path = self.get_parameter("config_path").value
 
         if self.visualize:
             self.map_frame_id = self.get_parameter("map_frame_id").value
@@ -108,12 +102,10 @@ class RomanMapNode(Node):
         color_params = CameraParams.from_msg(color_info_msg)
         self.log_and_send_status("RomanMapNode received for color camera info messages...", status=NodeInfoMsg.STARTUP)
 
-        mapper_params = MapperParams(
-            min_iou=min_iou,
-            min_sightings=min_sightings,
-            max_t_no_sightings=max_t_no_sightings,
-            mask_downsample_factor=mask_downsample_factor,
-        )
+        if config_path != "":
+            mapper_params = MapperParams.from_yaml(config_path)
+        else:
+            mapper_params = MapperParams()
         self.mapper = Mapper(
            mapper_params,
            camera_params=color_params
@@ -230,8 +222,9 @@ class RomanMapNode(Node):
             elif self.viz_rotate_img == "180":
                 img = cv.rotate(img, cv.ROTATE_180)
         
-        img_msg = self.bridge.cv2_to_imgmsg(img, encoding="bgr8")
-        self.annotated_img_pub.publish(img_msg)
+        annotated_img_msg = self.bridge.cv2_to_imgmsg(img, encoding="bgr8")
+        annotated_img_msg.header = img_msg.header
+        self.annotated_img_pub.publish(annotated_img_msg)
         
     def log_and_send_status(self, note, status=NodeInfoMsg.NOMINAL):
         """
