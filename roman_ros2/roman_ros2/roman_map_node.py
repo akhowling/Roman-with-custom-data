@@ -59,7 +59,7 @@ class RomanMapNode(Node):
                 ("object_ref", "bottom_middle"),
                 ("publish_active_segments", False),
                 ("nickname", "roman_map"),
-                ("use_multiple_cams", False)
+                ("use_multiple_cams", False),
                 ("viz_num_objs", 20),
                 ("viz_pts_per_obj", 250),
                 ("viz_min_viz_dt", 2.0),
@@ -72,6 +72,7 @@ class RomanMapNode(Node):
         self.visualize = self.get_parameter("visualize").value
         self.output_file = self.get_parameter("output_roman_map").value
         self.object_ref = self.get_parameter("object_ref").value
+        self.base_link_frame_id = self.get_parameter("base_link_frame_id").value
         self.publish_active_segments = self.get_parameter("publish_active_segments").value
         self.nickname = self.get_parameter("nickname").value
         self.use_multiple_cams = self.get_parameter("use_multiple_cams").value
