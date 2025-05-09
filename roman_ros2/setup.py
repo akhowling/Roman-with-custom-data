@@ -28,7 +28,8 @@ setup(
         'console_scripts': [
             'fastsam_node.py = roman_ros2.fastsam_node:main',
             'roman_map_node.py = roman_ros2.roman_map_node:main',
-            'roman_align_node.py = roman_ros2.roman_align_node:main'
+            'roman_align_node.py = roman_ros2.roman_align_node:main',
+            'roman_loop_closure_node.py = roman_ros2.roman_loop_closure_node:main'
         ],
     },
 )
