@@ -9,10 +9,12 @@ import roman_msgs.msg as roman_msgs
 import geometry_msgs.msg as geometry_msgs
 import std_msgs.msg as std_msgs
 import visualization_msgs.msg as visualization_msgs
+from pose_graph_tools_msgs.msg import PoseGraph, PoseGraphEdge
 
 import ros2_numpy as rnp
 
 from roman.map.observation import Observation
+from roman.map.map import Submap
 from roman.object.segment import Segment, SegmentMinimalData
 
 class MapColors:
@@ -205,3 +207,24 @@ def default_marker(position: Tuple[float, float, float], color: Tuple[float, flo
     marker.color.b = color[2]
     marker.lifetime = rclpy.duration.Duration(seconds=1.0).to_msg()
     return marker
+
+def lc_to_pose_graph_msg(robot_id1: int, robot_id2: int, submap1: Submap, submap2: Submap, 
+                         T_submap1_submap2: np.ndarray, covariance: np.ndarray, stamp):
+    edge = PoseGraphEdge()
+    edge.header.stamp = stamp
+    
+    edge.key_from = int(submap1.time*1e9)
+    edge.key_to = int(submap2.time*1e9)
+    edge.robot_from = robot_id1
+    edge.robot_to = robot_id2
+    edge.type = PoseGraphEdge.LOOPCLOSE
+    
+    edge.pose = rnp.msgify(geometry_msgs.Pose, T_submap1_submap2)
+    edge.covariance = covariance.reshape(-1).tolist()
+    
+    pg = PoseGraph()
+    pg.header.stamp = stamp
+    pg.edges.append(edge)
+    
+    return pg
+    

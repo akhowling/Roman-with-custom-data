@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import numpy as np
+from numpy.linalg import inv
 from dataclasses import dataclass
 from typing import List
 from copy import deepcopy
@@ -18,6 +19,7 @@ import roman_msgs.msg as roman_msgs
 import geometry_msgs.msg as geometry_msgs
 import visualization_msgs.msg as visualization_msgs
 from ros_system_monitor_msgs.msg import NodeInfoMsg
+from pose_graph_tools_msgs.msg import PoseGraph, PoseGraphEdge
 
 # Custom modules
 from robotdatapy.transform import transform_to_xyzrpy
@@ -32,7 +34,7 @@ from roman.utils import transform_rm_roll_pitch
 from roman.map.map import Submap, ROMANMap, submaps_from_roman_map, SubmapParams
 
 # Local imports
-from roman_ros2.utils import msg_to_segment, float_to_ros_time
+from roman_ros2.utils import msg_to_segment, float_to_ros_time, lc_to_pose_graph_msg
 
 @dataclass
 class SegmentUpdateResult():
@@ -103,6 +105,8 @@ class ROMANLoopClosureNode(Node):
                 ("submap_overlapping_segments", 20),
                 ("lc_required_associations", 6),
                 ("nickname", "roman_lc"),
+                ("lc_std_dev_rotation_deg", 1.0),
+                ("lc_std_dev_translation_m", 0.5),
                 ("ego_id", 0),
                 ("ego_name", ""),
                 ("ego_flu_ref_frame", ""),
@@ -120,6 +124,8 @@ class ROMANLoopClosureNode(Node):
         self.submap_num_segments = self.get_parameter("submap_num_segments").value
         self.submap_overlapping_segments = self.get_parameter("submap_overlapping_segments").value
         self.lc_required_associations = self.get_parameter("lc_required_associations").value
+        self.lc_std_dev_rotation_deg = self.get_parameter("lc_std_dev_rotation_deg").value
+        self.lc_std_dev_translation_m = self.get_parameter("lc_std_dev_translation_m").value
         self.nickname = self.get_parameter("nickname").value
         self.ego_id = self.get_parameter("ego_id").value
         self.ego_name = self.get_parameter("ego_name").value
@@ -168,6 +174,9 @@ class ROMANLoopClosureNode(Node):
 
         # internal variables
         self.time_eps = 1.0
+        self.covariance = np.diag([np.deg2rad(self.lc_std_dev_rotation_deg)**2]*3 + 
+                                  [self.lc_std_dev_translation_m**2]*3)
+        
         self.segment_queues = {
             live_id: SegmentQueue(self.submap_num_segments, self.submap_overlapping_segments)
         for live_id in self.live_ids}
@@ -198,7 +207,8 @@ class ROMANLoopClosureNode(Node):
     def setup_ros(self):
         
         # ros publishers
-        # TODO: setup publisher: https://github.com/MIT-SPARK/pose_graph_tools/tree/ros2/pose_graph_tools_msgs/msg
+        self.pgt_lc_pub = self.create_publisher(PoseGraph, "roman/roman_lc/pose_graph_update", 
+                                                qos_profile=QoSProfile(depth=10))
         
         # ros subscribers
         self.segment_subs = [
@@ -277,6 +287,7 @@ class ROMANLoopClosureNode(Node):
             
 
     def run_submap_registration(self, submap: Submap, robot_id: int, other_id: int):
+        submap2: Submap
         for submap2 in self.submaps[other_id]:
             # check if submap2 is already registered
             if submap2.id == submap.id and robot_id == other_id:
@@ -293,7 +304,7 @@ class ROMANLoopClosureNode(Node):
                     segments1 = [seg for seg in segments1 if seg.id not in segments2_ids]
                     segments2 = [seg for seg in segments2 if seg.id not in segments1_ids]
                 associations = self.roman_reg.register(segments1, segments2)
-                T_submap1_submap2 = self.roman_reg.T_align(
+                T_submapgrav1_submapgrav2 = self.roman_reg.T_align(
                     segments1, segments2, associations)
             except InsufficientAssociationsException:
                 continue
@@ -303,7 +314,17 @@ class ROMANLoopClosureNode(Node):
 
             self.log_and_send_status(f"Found {len(associations)} associations between robot_ids: " + 
                 f"({robot_id}, {other_id}) and submaps: ({submap.id}, {submap2.id}).")
-            # TODO: publish loop closure
+            
+            T_odom1_submapgrav1 = submap.pose_gravity_aligned
+            T_odom2_submapgrav2 = submap2.pose_gravity_aligned
+            T_odom1_submap1 = submap.pose_flu
+            T_odom2_submap2 = submap2.pose_flu
+            T_submap1_submap2 = inv(T_odom1_submap1) @ T_odom1_submapgrav1 @ \
+                T_submapgrav1_submapgrav2 @ inv(T_odom2_submapgrav2) @ T_odom2_submap2
+                
+            pg_msg = lc_to_pose_graph_msg(robot_id, other_id, submap, submap2, T_submap1_submap2,
+                                          self.covariance, self.get_clock().now().to_msg())
+            self.pgt_lc_pub.publish(pg_msg)
 
     def log_and_send_status(self, note, status=NodeInfoMsg.NOMINAL):
         """
