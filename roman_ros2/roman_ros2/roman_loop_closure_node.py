@@ -34,7 +34,8 @@ from roman.utils import transform_rm_roll_pitch
 from roman.map.map import Submap, ROMANMap, submaps_from_roman_map, SubmapParams
 
 # Local imports
-from roman_ros2.utils import msg_to_segment, float_to_ros_time, lc_to_pose_graph_msg
+from roman_ros2.utils import msg_to_segment, float_to_ros_time, lc_to_pose_graph_msg, \
+    lc_to_msg
 
 @dataclass
 class SegmentUpdateResult():
@@ -207,6 +208,8 @@ class ROMANLoopClosureNode(Node):
     def setup_ros(self):
         
         # ros publishers
+        self.loop_closure_pub = self.create_publisher(roman_msgs.LoopClosure, 
+            "roman/roman_lc/loop_closure", qos_profile=QoSProfile(depth=10))
         self.pgt_lc_pub = self.create_publisher(PoseGraph, "roman/roman_lc/pose_graph_update", 
                                                 qos_profile=QoSProfile(depth=10))
         
@@ -272,7 +275,7 @@ class ROMANLoopClosureNode(Node):
         )
         for seg_i in seg_update_res.submap_segments:
             segment = deepcopy(seg_i)
-            segment.transform(submap.pose_gravity_aligned)
+            segment.transform(np.linalg.inv(submap.pose_gravity_aligned))
             submap.segments.append(segment)
 
         self.submaps[robot_id].append(submap)
@@ -325,6 +328,10 @@ class ROMANLoopClosureNode(Node):
             pg_msg = lc_to_pose_graph_msg(robot_id, other_id, submap, submap2, T_submap1_submap2,
                                           self.covariance, self.get_clock().now().to_msg())
             self.pgt_lc_pub.publish(pg_msg)
+            
+            lc_msg = lc_to_msg(robot_id, other_id, submap, submap2, associations, 
+                               T_submap1_submap2, self.covariance, self.get_clock().now().to_msg())
+            self.loop_closure_pub.publish(lc_msg)
 
     def log_and_send_status(self, note, status=NodeInfoMsg.NOMINAL):
         """
