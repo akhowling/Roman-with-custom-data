@@ -186,17 +186,17 @@ class ROMANLoopClosureNode(Node):
         self.poses = {live_id: [] for live_id in self.live_ids}
 
         if config_path == "":
-            submap_align_params = SubmapAlignParams()
+            self.submap_align_params = SubmapAlignParams()
         else:
-            submap_align_params = SubmapAlignParams.from_yaml(config_path)
+            self.submap_align_params = SubmapAlignParams.from_yaml(config_path)
 
-        self.roman_reg = submap_align_params.get_object_registration()
+        self.roman_reg = self.submap_align_params.get_object_registration()
 
         # load prior session maps
         self.log_and_send_status("Loading prior maps.", status=NodeInfoMsg.STARTUP)
         for prior_id, map_path in zip(self.prior_session_ids, self.prior_session_maps):
             prior_map = ROMANMap.from_pickle(map_path)
-            submap_params = SubmapParams.from_submap_align_params(submap_align_params)
+            submap_params = SubmapParams.from_submap_align_params(self.submap_align_params)
             submaps = submaps_from_roman_map(prior_map, submap_params)
             self.submaps[prior_id] = submaps
             self.log_and_send_status(f"Loaded {len(submaps)} submaps for robot {prior_id} from {map_path}.", 
@@ -309,6 +309,8 @@ class ROMANLoopClosureNode(Node):
                 associations = self.roman_reg.register(segments1, segments2)
                 T_submapgrav1_submapgrav2 = self.roman_reg.T_align(
                     segments1, segments2, associations)
+                if self.submap_align_params.force_rm_lc_roll_pitch:
+                    T_submapgrav1_submapgrav2 = transform_rm_roll_pitch(T_submapgrav1_submapgrav2)
             except InsufficientAssociationsException:
                 continue
 

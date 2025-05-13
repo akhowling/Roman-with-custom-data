@@ -219,7 +219,8 @@ def lc_to_pose_graph_msg(robot_id1: int, robot_id2: int, submap1: Submap, submap
     edge.robot_to = robot_id2
     edge.type = PoseGraphEdge.LOOPCLOSE
     
-    edge.pose = rnp.msgify(geometry_msgs.Pose, T_submap1_submap2)
+    # Pose Graph Tools assumes T_to_from or T_submap2_submap1
+    edge.pose = rnp.msgify(geometry_msgs.Pose, np.linalg.inv(T_submap1_submap2))
     edge.covariance = covariance.reshape(-1).tolist()
     
     pg = PoseGraph()
