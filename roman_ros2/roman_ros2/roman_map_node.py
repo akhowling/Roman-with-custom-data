@@ -185,7 +185,7 @@ class RomanMapNode(Node):
         
         if not self.use_multiple_cams:
             if not self.T_camera_flu_set:
-                self.set_T_camera_flu()
+                self.set_T_camera_flu(obs_array_msg)
             pose = rnp.numpify(obs_array_msg.pose) # camera frame (T_camera_flu applied internally)
         else:
             pose = rnp.numpify(obs_array_msg.pose_flu) # base link frame

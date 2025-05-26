@@ -11,3 +11,7 @@ repositories:
     type: git
     url: https://github.com/MIT-SPARK/pose_graph_tools.git
     version: ros2
+  roman:
+    type: git
+    url: https://github.com/mit-acl/roman.git
+    version: main

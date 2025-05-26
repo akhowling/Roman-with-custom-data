@@ -11,12 +11,13 @@ setup(
         ('share/ament_index/resource_index/packages',
             ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
-        ('share/' + package_name + '/launch', glob('launch/*.launch.py')),
-        ('share/' + package_name + '/cfg', glob('cfg/*.yaml')),
+        ('share/' + package_name + '/launch', glob('launch/*.launch.*')),
+        ('share/' + package_name + '/cfg/d455', glob('cfg/d455/*.yaml')),
     ],
     install_requires=[
         'setuptools',
         'transforms3d'
+        # TODO: do these actually get installed by being here?
     ],
     zip_safe=True,
     maintainer='masonbp',

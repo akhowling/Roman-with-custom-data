@@ -1,4 +1,5 @@
-weights_path: "$FASTSAM_WEIGHTS_PATH"
+weights_path: "$ROMAN_WEIGHTS/FastSAM-x.pt"
+yolo_weights_path: "$ROMAN_WEIGHTS/yolov7.pt"
 imgsz: [256, 256]
 device: 'cuda'
 mask_downsample_factor: 8
@@ -14,4 +15,4 @@ plane_filter_params: [3.0, 1.0, 0.2]
 clip: False
 yolo_imgsz: [256, 256]
 depth_scale: 1000.0
-max_depth: 7.5
+max_depth: 3.0
