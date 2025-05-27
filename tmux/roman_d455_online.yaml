@@ -21,6 +21,11 @@ windows:
   panes:
   - ros2 launch roman_ros2 roman.launch.yaml robot_name:=$ROBOT_NAME camera:=$CAMERA launch_fastsam:=true
   - ros2 launch roman_ros2 roman.launch.yaml robot_name:=$ROBOT_NAME camera:=$CAMERA launch_mapping:=true
+  - echo "PRESS ENTER TO KILL" &&
+    docker stop $(docker ps -q --filter ancestor=kimera-vio-docker ) && 
+    tmux send-keys -t roman_ros2:roman.1 C-c &&
+    sleep 5 &&
+    tmux kill-session \
 
 - window_name: camera
   layout: tiled
@@ -32,6 +37,7 @@ windows:
   - ros2 launch realsense2_camera rs_launch.py camera_namespace:=$ROBOT_NAME 
     camera_name:=$CAMERA unite_imu_method:=2 enable_accel:=true enable_gyro:=true
     enable_infra1:=true enable_infra2:=true align_depth.enable:=true
+  - sleep 5 && ros2 param set /$ROBOT_NAME/$CAMERA depth_module.emitter_enabled 0
   - ros2 run tf2_ros static_transform_publisher 0 0 0 0.5 0.5 0.5 0.5 ${CAMERA}_link ${ROBOT_NAME}/base
   - source ${ROMAN_ROS_WS}/src/kimera-vio-ros2-realsense/dependencies/ros-${ROS_DISTRO}-ros1-bridge/install/local_setup.zsh
     && ros2 run ros1_bridge dynamic_bridge
