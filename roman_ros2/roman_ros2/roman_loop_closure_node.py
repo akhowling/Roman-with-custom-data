@@ -88,14 +88,10 @@ class SegmentQueue():
     def earliest_seen(self):
         return np.min([seg.first_seen for seg in self.segments.values()])
             
+class ROMANLoopClosureNodeBaseClass(Node):
 
-class ROMANLoopClosureNode(Node):
-
-    def __init__(self):
-        
-        super().__init__('roman_loop_closure_node')
-        self.status_pub = self.create_publisher(NodeInfoMsg, "roman/roman_lc/status", 
-                                                qos_profile=QoSProfile(depth=10))
+    def __init__(self, node_name):
+        super().__init__(node_name)
 
         # ros parameters
         self.declare_parameters(
@@ -121,7 +117,7 @@ class ROMANLoopClosureNode(Node):
             ]
         )
         
-        config_path = self.get_parameter("config_path").value
+        self.config_path = self.get_parameter("config_path").value
         self.submap_num_segments = self.get_parameter("submap_num_segments").value
         self.submap_overlapping_segments = self.get_parameter("submap_overlapping_segments").value
         self.lc_required_associations = self.get_parameter("lc_required_associations").value
@@ -173,6 +169,14 @@ class ROMANLoopClosureNode(Node):
         assert len(set(self.all_ids)) == len(self.all_ids), \
             "ERROR: all robot ids must be unique. Check team_ids and prior_session_ids."
 
+class ROMANLoopClosureNode(ROMANLoopClosureNodeBaseClass):
+
+    def __init__(self):
+        
+        super().__init__('roman_loop_closure_node')
+        self.status_pub = self.create_publisher(NodeInfoMsg, "roman/roman_lc/status", 
+                                                qos_profile=QoSProfile(depth=10))
+
         # internal variables
         self.time_eps = 1.0
         self.covariance = np.diag([np.deg2rad(self.lc_std_dev_rotation_deg)**2]*3 + 
@@ -185,10 +189,10 @@ class ROMANLoopClosureNode(Node):
         self.times = {live_id: [] for live_id in self.live_ids}
         self.poses = {live_id: [] for live_id in self.live_ids}
 
-        if config_path == "":
+        if self.config_path == "":
             self.submap_align_params = SubmapAlignParams()
         else:
-            self.submap_align_params = SubmapAlignParams.from_yaml(config_path)
+            self.submap_align_params = SubmapAlignParams.from_yaml(self.config_path)
 
         self.roman_reg = self.submap_align_params.get_object_registration()
 
