@@ -21,7 +21,7 @@ windows:
   panes:
   - ros2 launch roman_ros2 roman.launch.yaml robot_name:=$ROBOT_NAME camera:=$CAMERA launch_fastsam:=true
   - ros2 launch roman_ros2 roman.launch.yaml robot_name:=$ROBOT_NAME camera:=$CAMERA launch_mapping:=true
-  - ros2 launch roman_ros2 roman.launch.yaml robot_name:=$ROBOT_NAME camera:=$CAMERA launch_loop_closure:=true
+  - ros2 launch roman_ros2 roman.launch.yaml robot_name:=$ROBOT_NAME camera:=$CAMERA launch_loop_closure:=true launch_loop_closure_viz:=true
   - echo "PRESS ENTER TO KILL" &&
     docker stop $(docker ps -q --filter ancestor=kimera-vio-docker ) && 
     tmux send-keys -t roman_ros2:roman.1 C-c &&

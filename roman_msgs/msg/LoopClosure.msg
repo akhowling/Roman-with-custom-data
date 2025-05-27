@@ -3,6 +3,9 @@ std_msgs/Header header
 int32 robot1_id
 int32 robot2_id
 
+int32 submap1_id
+int32 submap2_id
+
 builtin_interfaces/Time robot1_time
 builtin_interfaces/Time robot2_time
 

@@ -6,5 +6,5 @@
     robot_id: 0
     visualize: true
     viz_min_viz_dt: 0.25
-    output_roman_map: ~/roman_map.pkl
+    output_roman_map: ~/.roman_ros2/roman_map.pkl
     # default T_camera_flu assumes camera frame is right-down-forward (rdf)

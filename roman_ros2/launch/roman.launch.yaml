@@ -5,6 +5,7 @@ launch:
   - arg: {name: launch_fastsam, default: "false"}
   - arg: {name: launch_mapping, default: "false"}
   - arg: {name: launch_loop_closure, default: "false"}
+  - arg: {name: launch_loop_closure_viz, default: "false"}
 
   - group:
     - set_remap: {from: color/camera_info, to: $(var camera)/color/camera_info}
@@ -40,6 +41,16 @@ launch:
         pkg: roman_ros2
         exec: roman_loop_closure_node.py
         name: roman_lc_node
+        param:
+          - from: $(find-pkg-share roman_ros2)/cfg/$(var camera)/roman_loop_closure_node.yaml
+            allow_substs: true
+          - {name: config_path, value: $(find-pkg-share roman_ros2)/cfg/$(var camera)/roman_loop_closure.yaml}
+
+    - node:
+        if: $(var launch_loop_closure_viz)
+        pkg: roman_ros2
+        exec: lc_viz_node.py
+        name: lc_viz_node
         param:
           - from: $(find-pkg-share roman_ros2)/cfg/$(var camera)/roman_loop_closure_node.yaml
             allow_substs: true

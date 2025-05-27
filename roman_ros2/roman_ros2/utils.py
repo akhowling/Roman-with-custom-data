@@ -236,6 +236,9 @@ def lc_to_msg(robot_id1: int, robot_id2: int, submap1: Submap, submap2: Submap,
     
     lc_msg.robot1_id = robot_id1
     lc_msg.robot2_id = robot_id2
+
+    lc_msg.submap1_id = submap1.id
+    lc_msg.submap2_id = submap2.id
     
     lc_msg.robot1_time = float_to_ros_time(submap1.time)
     lc_msg.robot2_time = float_to_ros_time(submap2.time)

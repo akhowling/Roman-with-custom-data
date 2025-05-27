@@ -7,6 +7,7 @@ import struct
 import pickle
 import time
 import signal
+from pathlib import Path
 
 # ROS imports
 import rclpy
@@ -91,8 +92,8 @@ class RomanMapNode(Node):
                 self.viz_rotate_img = None
         if self.output_file != "":
             self.output_file = os.path.expanduser(self.output_file)
-            self.pose_history = []
-            self.time_history = []
+            output_file_parent = Path(self.output_file).parent
+            output_file_parent.mkdir(parents=True, exist_ok=True)
             self.get_logger().info(f"Output file: {self.output_file}")
         else:
             self.output_file = None
@@ -205,10 +206,6 @@ class RomanMapNode(Node):
             for segment in self.mapper.segments:
                 self.publish_segment(segment)
         
-        if self.output_file is not None:
-            self.pose_history.append(rnp.numpify(obs_array_msg.pose_flu))
-            self.time_history.append(t)
-
     def publish_segment(self, segment: Segment):
         if self.object_ref == 'bottom_middle':
             segment.set_center_ref('bottom_middle')
