@@ -2,6 +2,7 @@
 launch:
   - arg: {name: robot_name}
   - arg: {name: camera}
+  - arg: {name: output_dir, default: "~/.roman_ros2"}
   - arg: {name: launch_fastsam, default: "false"}
   - arg: {name: launch_mapping, default: "false"}
   - arg: {name: launch_loop_closure, default: "false"}
@@ -35,6 +36,7 @@ launch:
         param:
           - from: $(find-pkg-share roman_ros2)/cfg/$(var camera)/roman_map_node.yaml
             allow_substs: true
+          - {name: output_roman_map, value: $(var output_dir)/roman_map.pkl}
 
     - node:
         if: $(var launch_loop_closure)
@@ -55,3 +57,4 @@ launch:
           - from: $(find-pkg-share roman_ros2)/cfg/$(var camera)/roman_loop_closure_node.yaml
             allow_substs: true
           - {name: config_path, value: $(find-pkg-share roman_ros2)/cfg/$(var camera)/roman_loop_closure.yaml}
+          - {name: output_dir, value: $(var output_dir)}

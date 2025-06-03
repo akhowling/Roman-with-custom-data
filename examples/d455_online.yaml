@@ -1,0 +1,94 @@
+session_name: roman_ros2
+
+environment:
+  ROS_MASTER_URI: ${ROS_MASTER_URI}
+  ROS_IP: ${ROS_IP}
+  CAMERA: d455
+  ROBOT_NAME: robot
+  ROMAN_ROS_WS: ${ROMAN_ROS_WS}
+  ROMAN_ENV_ACTIVATE: ${ROMAN_ENV_ACTIVATE}
+  OUTPUT_DIR: ${OUTPUT_DIR:-~/.roman_ros2}
+  RECORD: ${RECORD:-false}
+
+options:
+  default-command: /bin/zsh
+
+windows:
+- window_name: roman
+  layout: tiled
+  shell_command_before:
+  - source $ROMAN_ROS_WS/install/setup.zsh
+  - export RMW_IMPLEMENTATION=rmw_zenoh_cpp
+  - $ROMAN_ENV_ACTIVATE
+  panes:
+  - ros2 launch roman_ros2 roman.launch.yaml robot_name:=$ROBOT_NAME camera:=$CAMERA 
+    launch_fastsam:=true
+  - ros2 launch roman_ros2 roman.launch.yaml robot_name:=$ROBOT_NAME camera:=$CAMERA 
+    launch_mapping:=true output_dir:=$OUTPUT_DIR
+  - ros2 launch roman_ros2 roman.launch.yaml robot_name:=$ROBOT_NAME camera:=$CAMERA 
+    launch_loop_closure:=true launch_loop_closure_viz:=true output_dir:=$OUTPUT_DIR
+  - echo "PRESS ENTER TO KILL";
+    tmux send-keys -t roman_ros2:kimera_vio_ros1_docker C-d '"' &&
+    tmux send-keys -t roman_ros2:kimera_vio_ros1_docker 'tmux kill-session -t kimera_vio_ros1_docker' Enter &&
+    tmux send-keys -t roman_ros2:roman.1 C-c &&
+    tmux send-keys -t roman_ros2:record.0 C-c &&
+    sleep 5 &&
+    tmux kill-session \
+    # docker stop $(docker ps -q --filter ancestor=kimera-vio-docker ) && 
+
+- window_name: camera
+  layout: tiled
+  shell_command_before:
+  - source $ROMAN_ROS_WS/install/setup.zsh
+  - export RMW_IMPLEMENTATION=rmw_zenoh_cpp
+  panes:
+  - ros2 run rmw_zenoh_cpp rmw_zenohd
+  - ros2 launch realsense2_camera rs_launch.py camera_namespace:=$ROBOT_NAME 
+    camera_name:=$CAMERA unite_imu_method:=2 enable_accel:=true enable_gyro:=true
+    enable_infra1:=true enable_infra2:=true align_depth.enable:=true
+  - sleep 5 && ros2 param set /$ROBOT_NAME/$CAMERA depth_module.emitter_enabled 0
+  - ros2 run tf2_ros static_transform_publisher 0 0 0 0.5 0.5 0.5 0.5 ${CAMERA}_link ${ROBOT_NAME}/base
+  - source ${ROMAN_ROS_WS}/src/kimera-vio-ros2-realsense/dependencies/ros-${ROS_DISTRO}-ros1-bridge/install/local_setup.zsh
+    && ros2 run ros1_bridge dynamic_bridge
+
+- window_name: kimera_vio_ros1_docker
+  layout: tiled
+  shell_command_before:
+  panes: 
+  - $ROMAN_ROS_WS/src/kimera-vio-ros2-realsense/docker/enter.sh
+
+- window_name: record
+  layout: tiled
+  shell_command_before:
+  panes:
+  # for kimera vio ros to show up in the ros2 topic list, we must subscribe to it
+  - if [ "$RECORD" = true ]; 
+    then 
+    ros2 bag record -o $OUTPUT_DIR/bag
+    /$ROBOT_NAME/$CAMERA/color/camera_info
+    /$ROBOT_NAME/$CAMERA/color/image_raw
+    /$ROBOT_NAME/$CAMERA/aligned_depth_to_color/camera_info
+    /$ROBOT_NAME/$CAMERA/aligned_depth_to_color/image_raw
+    /$ROBOT_NAME/kimera_vio_ros/odometry
+    /tf
+    /tf_static; 
+    fi
+  - |
+    if [ "$RECORD" = true ]; 
+    then 
+    python3 -c "import rclpy
+    from rclpy.node import Node
+    from nav_msgs.msg import Odometry
+
+    class KimeraVIOOdomSub(Node):
+        def __init__(self):
+            super().__init__('kimera_vio_odom_sub')
+            self.sub = self.create_subscription(Odometry, '/$ROBOT_NAME/kimera_vio_ros/odometry', self.cb, 10)
+
+        def cb(self, msg):
+            pass  # No-op
+
+    rclpy.init()
+    rclpy.spin(KimeraVIOOdomSub())
+    rclpy.shutdown()"
+    fi

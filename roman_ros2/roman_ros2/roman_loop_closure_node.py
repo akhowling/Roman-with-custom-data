@@ -235,13 +235,14 @@ class ROMANLoopClosureNode(ROMANLoopClosureNodeBaseClass):
         seg_update_res = self.segment_queues[robot_id].update(segment)
 
         # record times and poses
-        # try:
-        # except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException) as ex:
-        #     self.get_logger().warning("tf lookup failed")
-        #     print(ex)
-        #     return
-        T_odom_flu_msg = self.tf_buffer.lookup_transform(self.odom_frames[robot_id], 
-            self.flu_ref_frames[robot_id], float_to_ros_time(segment.last_seen), rclpy.duration.Duration(seconds=2.0))
+        try:
+            T_odom_flu_msg = self.tf_buffer.lookup_transform(self.odom_frames[robot_id], 
+                self.flu_ref_frames[robot_id], float_to_ros_time(segment.last_seen), rclpy.duration.Duration(seconds=0.25))
+        except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException) as ex:
+            # self.get_logger().warning("tf lookup failed")
+            # print(ex)
+            return
+
         T_odom_flu = rnp.numpify(T_odom_flu_msg.transform).astype(np.float64)
         
         if segment.last_seen not in self.times[robot_id]:
