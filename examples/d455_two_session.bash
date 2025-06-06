@@ -56,10 +56,11 @@ echo "$DATA_YAML" > $OUTPUT_ROOT/roman/params/data.yaml
 
 read -r -d '' SUBMAP_ALIGN_YAML << EOM
 method: roman
-submap_radius: 1000.0
-submap_center_dist: 1000.0
+submap_radius: 20.0
+submap_center_dist: 10.0
 submap_center_time: 1000.0
-submap_max_size: 100
+submap_max_size: 50
+cosine_max: 0.95
 sigma: 0.3
 epsilon: 0.5
 EOM
@@ -68,4 +69,4 @@ echo "$SUBMAP_ALIGN_YAML" > $OUTPUT_ROOT/roman/params/submap_align.yaml
 $(eval echo "$ROMAN_ENV_ACTIVATE")
 python3 $ROMAN_ROS_WS/src/roman/demo/demo.py -p $OUTPUT_ROOT/roman/params -o $OUTPUT_ROOT/roman --skip-map --skip-rpgo
 
-python3 $ROMAN_ROS_WS/src/roman/demo/association_vid.py $OUTPUT_ROOT/roman $OUTPUT_ROOT/association_vid.mp4 -r run1 run2 -i 0 0
+python3 $ROMAN_ROS_WS/src/roman/demo/association_vid.py $OUTPUT_ROOT/roman $OUTPUT_ROOT/association_vid.mp4 -r run1 run2 -m

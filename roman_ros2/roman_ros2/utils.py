@@ -59,6 +59,8 @@ def observation_from_msg(observation_msg: roman_msgs.Observation):
         ) if observation_msg.mask else None,
         point_cloud=(np.array(observation_msg.point_cloud).reshape((-1, 3)) 
                      if observation_msg.point_cloud else None),
+        clip_embedding=(np.array(observation_msg.descriptor).reshape((-1,))
+                        if observation_msg.descriptor else None),
     )
     return observation
 
@@ -84,6 +86,7 @@ def observation_to_msg(observation: Observation):
         mask=observation.mask_downsampled.flatten().astype(np.int8).tolist() if observation.mask is not None else None,
         point_cloud=(observation.point_cloud.flatten().tolist() 
                      if observation.point_cloud is not None else None),
+        descriptor=observation.clip_embedding.flatten().tolist() if observation.clip_embedding is not None else None,
     )
     return observation_msg
 
@@ -115,7 +118,8 @@ def segment_to_msg(robot_id: int, segment: Segment):
         position=rnp.msgify(geometry_msgs.Point, centroid_from_segment(segment)),
         # volume=estimate_volume(segment.points) if segment.points is not None else 0.0,
         volume=segment.volume,
-        shape_attributes=[segment.volume, segment.linearity(e), segment.planarity(e), segment.scattering(e)]
+        shape_attributes=[segment.volume, segment.linearity(e), segment.planarity(e), segment.scattering(e)],
+        semantic_descriptor=segment.semantic_descriptor.flatten().tolist() if segment.semantic_descriptor is not None else None,
     )
     return segment_msg
 
@@ -136,7 +140,7 @@ def msg_to_segment(segment_msg: roman_msgs.Segment) -> SegmentMinimalData:
         linearity=segment_msg.shape_attributes[1],
         planarity=segment_msg.shape_attributes[2],
         scattering=segment_msg.shape_attributes[3],
-        semantic_descriptor=None,
+        semantic_descriptor=np.array(segment_msg.semantic_descriptor) if segment_msg.semantic_descriptor is not None else None,
         extent=None,
         first_seen=None,
         last_seen=time_stamp_to_float(segment_msg.header.stamp),
