@@ -54,7 +54,7 @@ echo export ROMAN_WEIGHTS=$(realpath ./src/roman_ros2/weights) >> ~/.zshrc
 or `.bashrc` file:
 
 ```
-echo export ROMAN_WEIGHTS=$(realpath ./src/roman_ros2/weights) >> ~/.zshrc
+echo export ROMAN_WEIGHTS=$(realpath ./src/roman_ros2/weights) >> ~/.bashrc
 ```
 
 Finally, the examples will source your python environment by calling `$ROMAN_ENV_ACTIVATE`. 

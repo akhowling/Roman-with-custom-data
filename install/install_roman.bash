@@ -1,6 +1,6 @@
 #!/bin/bash
 ROMAN_ROS_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )/.."
-ROMAN_DIR="$ROMAN_ROS_DIR/../../roman"
+ROMAN_DIR="$ROMAN_ROS_DIR/../roman"
 cd $ROMAN_DIR
 
 # Install CLIPPER
@@ -14,7 +14,7 @@ cd $ROMAN_DIR
 pip install .
 # TODO figure out how to get ros setup.py to include these
 # (or just include them in roman setup.py)
-pip install transforms3d
+pip install transforms3d gdown
 
 # download weights
 mkdir -p $ROMAN_ROS_DIR/weights
