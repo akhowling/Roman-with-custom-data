@@ -64,38 +64,10 @@ Before running the examples run (or put the following in your `~/.zshrc` or `~/.
 export ROMAN_ENV_ACTIVATE=<environment activation command>
 ```
 
-# Example use with D455 RealSense stereo camera and Kimera-VIO
+# Examples
 
-Some additional installation steps must be taken to set up the D455 and Kimera-VIO. 
-As prerequisites, follow the [RealSense instructions](https://github.com/IntelRealSense/realsense-ros?tab=readme-ov-file#installation-on-ubuntu) for installing the RealSense SDK and RealSense ROS2 Wrapper.
-Additionally, install `docker`. 
-
-Next, clone and install the `kimera-vio-ros2-realsense` repo:
-
-```
-git clone https://github.com/mbpeterson70/kimera-vio-ros2-realsense.git src/kimera-vio-ros2-realsense
-./src/kimera-vio-ros2-realsense/build.bash
-```
-
-# Example use with bagged data
-
-An example tmux file is included for running ROMAN mapping using D455 RGB-D images.
-
-To run this example, first install `tmuxp` (`sudo apt install tmuxp`) and set the following environment variables:
-
-```
-export ROBOT=<robot name>
-export CAMERA=<camera name>
-export BAG=<path to bag file>
-export ROMAN_WS=<path to ROS2 workspace where roman_ros2 is installed>
-export ACTIVATE_ROMAN_ENV=<command to activate python environment where roman is installed>
-```
-
-Inside of this directory, run the following command to launch ROMAN:
-
-```
-tmuxp load ./roman_ros2/tmux/example.yaml
-```
+A few example demos can be run following the [examples instructions](./examples/README.md).
+The provided examples include running ROMAN on a pre-recorded bag, using ROMAN for single robot loop closures, and the main `roman_ros2` demo that creates ROMAN maps across two camera sessions and then aligns the maps from the camera sessions without any initial pose information.
 
 ---
 
