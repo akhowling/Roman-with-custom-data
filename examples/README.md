@@ -38,6 +38,15 @@ Move the camera to the start of the second session and press enter to beging rec
 Press enter again to finish the second session.
 Finally, a video will be generated and opened automatically showing the object matches found by ROMAN. 
 
+Optionally, the `run.bash` script can be run with command line arguments:
+
+```
+./src/roman_ros2/examples/d455_two_session/run.bash <output directory name> <sessions to run>
+```
+
+where `<sessions to run>` can be `1`, `2`, `12`, or `none`. This defaults to `12` to create maps for sessions 1 and 2. 
+This functionality enables re-running if a single sessions needs to be re-run but you would like to use one of the previously recorded sessions.
+
 ## `roman_ros2` on bagged data
 
 An example tmux file is included for running ROMAN mapping using D455 RGB-D images.
