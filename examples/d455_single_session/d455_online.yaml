@@ -7,8 +7,8 @@ environment:
   ROBOT_NAME: robot
   ROMAN_ROS_WS: ${ROMAN_ROS_WS}
   ROMAN_ENV_ACTIVATE: ${ROMAN_ENV_ACTIVATE}
-  OUTPUT_DIR: ${OUTPUT_DIR:-~/.roman_ros2}
-  RECORD: ${RECORD:-false}
+  OUTPUT_DIR: ${OUTPUT_DIR}
+  RECORD: "${RECORD}"
 
 options:
   default-command: /bin/zsh
@@ -38,6 +38,8 @@ windows:
 
 - window_name: camera
   layout: tiled
+  environment: 
+    KIMERA_VIO_CAMERA: ${CAMERA}
   shell_command_before:
   - source $ROMAN_ROS_WS/install/setup.zsh
   - export RMW_IMPLEMENTATION=rmw_zenoh_cpp
