@@ -6,7 +6,7 @@ img_data:
     topic: /robot/d455/color/image_raw
     camera_info_topic: /robot/d455/color/camera_info
     compressed: False
-    compressed_encoding: 'bgr8'
+    color_space: 'bgr8'
 depth_data:
     path: ${OUTPUT_ROOT}/${RUN}/bag
     topic: /robot/d455/aligned_depth_to_color/image_raw

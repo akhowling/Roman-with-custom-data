@@ -1,27 +1,54 @@
 #!/usr/bin/env bash
-SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 
-export ROS_IP=$(ip route get 192.168.0.1 | awk -F"src " 'NR==1{split($2,a," ");print a[1]}')
+# Usage: ./run.bash <output_directory> <12>
+# output_directory and 12 are optional
+# 12, 1, 2, or "none" can be used to skip mapping sessions.
+
+# Command line args
+export OUTPUT_ROOT=${1:-''}
+export RUNS=${2:-"12"}
+
+# Internal vars
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"\
+
+export ROS_IP=127.0.0.1
 export ROS_MASTER_URI=http://$ROS_IP:11311
 export ROMAN_ROS_WS=$(realpath $SCRIPT_DIR/../../../../)
 export KIMERA_VIO_ROS2_REALSENSE_DIR=$ROMAN_ROS_WS/src/kimera-vio-ros2-realsense
 export RECORD=true
 
-read -p "Desired output directory: " OUTPUT_ROOT
-export OUTPUT_ROOT=$(eval echo "$OUTPUT_ROOT")
+
+if [ -z "$OUTPUT_ROOT" ]; then
+    read -p "Desired output directory: " OUTPUT_ROOT
+    export OUTPUT_ROOT=$(eval echo "$OUTPUT_ROOT")
+fi
 mkdir -p $OUTPUT_ROOT
 
 # Run first session of ROMAN mapping
-read -p "Press enter to start first session. "
-export OUTPUT_DIR=$OUTPUT_ROOT/run1
-mkdir -p $OUTPUT_DIR
-tmuxp load $SCRIPT_DIR/../d455_single_session/d455_online.yaml
+if [[ "$RUNS" == *"1"* ]]; then
+    read -p "Press enter to start first session. "
+    export OUTPUT_DIR=$OUTPUT_ROOT/run1
+    if [ -d "$OUTPUT_DIR" ]; then
+        rm -r $OUTPUT_DIR
+    fi
+    mkdir -p $OUTPUT_DIR
+    tmuxp load $SCRIPT_DIR/../d455_single_session/d455_online.yaml
+else
+    echo "Skipping session 1..."
+fi
 
 # Run second session of ROMAN mapping
-read -p "Press enter to start second session. "
-export OUTPUT_DIR=$OUTPUT_ROOT/run2
-mkdir -p $OUTPUT_DIR
-tmuxp load $SCRIPT_DIR/../d455_single_session/d455_online.yaml
+if [[ "$RUNS" == *"2"* ]]; then
+    read -p "Press enter to start second session. "
+    export OUTPUT_DIR=$OUTPUT_ROOT/run2
+    if [ -d "$OUTPUT_DIR" ]; then
+        rm -r $OUTPUT_DIR
+    fi
+    mkdir -p $OUTPUT_DIR
+    tmuxp load $SCRIPT_DIR/../d455_single_session/d455_online.yaml
+else
+    echo "Skipping session 2..."
+fi
 
 mkdir -p $OUTPUT_ROOT/roman/map
 cp $OUTPUT_ROOT/run1/roman_map.pkl $OUTPUT_ROOT/roman/map/run1.pkl
