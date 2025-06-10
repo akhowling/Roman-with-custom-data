@@ -9,7 +9,7 @@ As prerequisites, follow the [RealSense instructions](https://github.com/IntelRe
 Additionally, install `docker`, and the following packages:
 
 ```
-sudo apt install tmux tmuxp ros-${ROS_DISTRO}-rmw-zenoh-cpp
+sudo apt install tmux tmuxp ros-${ROS_DISTRO}-rmw-zenoh-cpp zsh
 ```
 
 Next, clone and install the `kimera-vio-ros2-realsense` repo:

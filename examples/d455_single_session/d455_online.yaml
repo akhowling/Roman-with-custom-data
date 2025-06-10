@@ -54,12 +54,16 @@ windows:
 - window_name: kimera_vio_ros1_docker
   layout: tiled
   shell_command_before:
+  - source $ROMAN_ROS_WS/install/setup.zsh
+  - export RMW_IMPLEMENTATION=rmw_zenoh_cpp
   panes: 
   - $ROMAN_ROS_WS/src/kimera-vio-ros2-realsense/docker/enter.sh
 
 - window_name: record
   layout: tiled
   shell_command_before:
+  - source $ROMAN_ROS_WS/install/setup.zsh
+  - export RMW_IMPLEMENTATION=rmw_zenoh_cpp
   panes:
   # for kimera vio ros to show up in the ros2 topic list, we must subscribe to it
   - if [ "$RECORD" = true ]; 
