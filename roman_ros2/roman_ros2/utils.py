@@ -9,10 +9,12 @@ import roman_msgs.msg as roman_msgs
 import geometry_msgs.msg as geometry_msgs
 import std_msgs.msg as std_msgs
 import visualization_msgs.msg as visualization_msgs
+from pose_graph_tools_msgs.msg import PoseGraph, PoseGraphEdge
 
 import ros2_numpy as rnp
 
 from roman.map.observation import Observation
+from roman.map.map import Submap
 from roman.object.segment import Segment, SegmentMinimalData
 
 class MapColors:
@@ -57,6 +59,8 @@ def observation_from_msg(observation_msg: roman_msgs.Observation):
         ) if observation_msg.mask else None,
         point_cloud=(np.array(observation_msg.point_cloud).reshape((-1, 3)) 
                      if observation_msg.point_cloud else None),
+        clip_embedding=(np.array(observation_msg.descriptor).reshape((-1,))
+                        if observation_msg.descriptor else None),
     )
     return observation
 
@@ -82,6 +86,7 @@ def observation_to_msg(observation: Observation):
         mask=observation.mask_downsampled.flatten().astype(np.int8).tolist() if observation.mask is not None else None,
         point_cloud=(observation.point_cloud.flatten().tolist() 
                      if observation.point_cloud is not None else None),
+        descriptor=observation.clip_embedding.flatten().tolist() if observation.clip_embedding is not None else None,
     )
     return observation_msg
 
@@ -113,7 +118,8 @@ def segment_to_msg(robot_id: int, segment: Segment):
         position=rnp.msgify(geometry_msgs.Point, centroid_from_segment(segment)),
         # volume=estimate_volume(segment.points) if segment.points is not None else 0.0,
         volume=segment.volume,
-        shape_attributes=[segment.volume, segment.linearity(e), segment.planarity(e), segment.scattering(e)]
+        shape_attributes=[segment.volume, segment.linearity(e), segment.planarity(e), segment.scattering(e)],
+        semantic_descriptor=segment.semantic_descriptor.flatten().tolist() if segment.semantic_descriptor is not None else None,
     )
     return segment_msg
 
@@ -134,7 +140,7 @@ def msg_to_segment(segment_msg: roman_msgs.Segment) -> SegmentMinimalData:
         linearity=segment_msg.shape_attributes[1],
         planarity=segment_msg.shape_attributes[2],
         scattering=segment_msg.shape_attributes[3],
-        semantic_descriptor=None,
+        semantic_descriptor=np.array(segment_msg.semantic_descriptor) if segment_msg.semantic_descriptor is not None else None,
         extent=None,
         first_seen=None,
         last_seen=time_stamp_to_float(segment_msg.header.stamp),
@@ -205,3 +211,47 @@ def default_marker(position: Tuple[float, float, float], color: Tuple[float, flo
     marker.color.b = color[2]
     marker.lifetime = rclpy.duration.Duration(seconds=1.0).to_msg()
     return marker
+
+def lc_to_pose_graph_msg(robot_id1: int, robot_id2: int, submap1: Submap, submap2: Submap, 
+                         T_submap1_submap2: np.ndarray, covariance: np.ndarray, stamp):
+    edge = PoseGraphEdge()
+    edge.header.stamp = stamp
+    
+    edge.key_from = int(submap1.time*1e9)
+    edge.key_to = int(submap2.time*1e9)
+    edge.robot_from = robot_id1
+    edge.robot_to = robot_id2
+    edge.type = PoseGraphEdge.LOOPCLOSE
+    
+    # Pose Graph Tools assumes T_to_from or T_submap2_submap1
+    edge.pose = rnp.msgify(geometry_msgs.Pose, np.linalg.inv(T_submap1_submap2))
+    edge.covariance = covariance.reshape(-1).tolist()
+    
+    pg = PoseGraph()
+    pg.header.stamp = stamp
+    pg.edges.append(edge)
+    
+    return pg
+    
+def lc_to_msg(robot_id1: int, robot_id2: int, submap1: Submap, submap2: Submap, 
+        associations: np.ndarray, T_submap1_submap2: np.ndarray, covariance: np.ndarray, stamp):
+    lc_msg = roman_msgs.LoopClosure()
+    lc_msg.header.stamp = stamp
+    
+    lc_msg.robot1_id = robot_id1
+    lc_msg.robot2_id = robot_id2
+
+    lc_msg.submap1_id = submap1.id
+    lc_msg.submap2_id = submap2.id
+    
+    lc_msg.robot1_time = float_to_ros_time(submap1.time)
+    lc_msg.robot2_time = float_to_ros_time(submap2.time)
+    
+    lc_msg.num_associations = len(associations)
+    lc_msg.robot1_associated_segment_ids = [submap1.segments[i].id for i in associations[:,0]]
+    lc_msg.robot2_associated_segment_ids = [submap2.segments[i].id for i in associations[:,1]]
+
+    lc_msg.transform_robot1_robot2 = rnp.msgify(geometry_msgs.Pose, T_submap1_submap2)
+    lc_msg.covariance = covariance.reshape(-1).tolist()
+    
+    return lc_msg

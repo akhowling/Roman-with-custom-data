@@ -11,25 +11,24 @@ Checkout the main branch for the ROS1 wrapper.
 
 ## Citation
 
-If you find ROMAN useful in your work, please cite our paper:
+If you find ROMAN useful in your work, please cite our [paper](https://www.roboticsproceedings.org/rss21/p029.pdf):
 
-M.B. Peterson, Y.X. Jia, Y. Tian and J.P. How, "ROMAN: Open-Set Object Map Alignment for Robust View-Invariant Global Localization,"
-*arXiv preprint arXiv:2410.08262*, 2024.
+M.B. Peterson, Y.X. Jia, Y. Tian, A. Thomas, and J.P. How, "ROMAN: Open-Set Object Map Alignment for Robust View-Invariant Global Localization,"
+*Robotics: Science and Systems*, 2025.
 
 ```
-@article{peterson2024roman,
+@article{peterson2025roman,
   title={ROMAN: Open-Set Object Map Alignment for Robust View-Invariant Global Localization},
   author={Peterson, Mason B and Jia, Yi Xuan and Tian, Yulun and Thomas, Annika and How, Jonathan P},
-  journal={arXiv preprint arXiv:2410.08262},
-  year={2024}
+  booktitle={Robotics: Science and Systems (RSS)},
+  pdf={https://www.roboticsproceedings.org/rss21/p029.pdf},
+  year={2025}
 }
 ```
 
 # Install
 
-First, install the ROMAN python package using the install directions [here](https://github.com/mit-acl/ROMAN?tab=readme-ov-file#install).
-
-Then, in the root directory of your ROS workspace run:
+In the root directory of your ROS workspace run:
 
 ```
 git clone -b ros2 git@github.com:mit-acl/roman_ros.git src/roman_ros2
@@ -37,25 +36,38 @@ vcs import src < src/roman_ros2/install/packages.yaml
 colcon build
 ```
 
-# Example use
-
-An example tmux file is included for running ROMAN mapping using D455 RGB-D images.
-
-To run this example, first install `tmuxp` (`sudo apt install tmuxp`) and set the following environment variables:
+Then, activate the python environment you would like to use with ROMAN and run:
 
 ```
-export ROBOT=<robot name>
-export CAMERA=<camera name>
-export BAG=<path to bag file>
-export ROMAN_WS=<path to ROS2 workspace where roman_ros2 is installed>
-export ACTIVATE_ROMAN_ENV=<command to activate python environment where roman is installed>
+./src/roman_ros2/install/install_roman.bash
 ```
 
-Inside of this directory, run the following command to launch ROMAN:
+to install the ROMAN python package and download required model weights.
+
+For running `roman_ros2`, you will need to set the `ROMAN_WEIGHTS` environment variable. 
+You may want to run the following to add this environment variable to your `.zshrc` file:
 
 ```
-tmuxp load ./roman_ros2/tmux/example.yaml
+echo export ROMAN_WEIGHTS=$(realpath ./src/roman_ros2/weights) >> ~/.zshrc
 ```
+
+or `.bashrc` file:
+
+```
+echo export ROMAN_WEIGHTS=$(realpath ./src/roman_ros2/weights) >> ~/.bashrc
+```
+
+Finally, the examples will source your python environment by calling `$ROMAN_ENV_ACTIVATE`. 
+Before running the examples run (or put the following in your `~/.zshrc` or `~/.bashrc`):
+
+```
+export ROMAN_ENV_ACTIVATE=<environment activation command>
+```
+
+# Examples
+
+A few example demos can be run following the [examples instructions](./examples/README.md).
+The provided examples include running ROMAN on a pre-recorded bag, using ROMAN for single robot loop closures, and the main `roman_ros2` demo that creates ROMAN maps across two camera sessions and then aligns the maps from the camera sessions without any initial pose information.
 
 ---
 

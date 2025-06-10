@@ -7,6 +7,7 @@ import struct
 import pickle
 import time
 import signal
+from pathlib import Path
 
 # ROS imports
 import rclpy
@@ -55,10 +56,11 @@ class RomanMapNode(Node):
                 ("visualize", False),
                 ("output_roman_map", ""),
                 ("map_frame_id", "map"),
+                ("base_link_frame_id", ""),
                 ("object_ref", "bottom_middle"),
-                ("T_camera_flu", np.eye(4).reshape(-1).tolist()),
                 ("publish_active_segments", False),
                 ("nickname", "roman_map"),
+                ("use_multiple_cams", False),
                 ("viz_num_objs", 20),
                 ("viz_pts_per_obj", 250),
                 ("viz_min_viz_dt", 2.0),
@@ -71,11 +73,13 @@ class RomanMapNode(Node):
         self.visualize = self.get_parameter("visualize").value
         self.output_file = self.get_parameter("output_roman_map").value
         self.object_ref = self.get_parameter("object_ref").value
-        T_camera_flu = self.get_parameter("T_camera_flu").value
-        T_camera_flu = np.array(T_camera_flu).reshape(4, 4)
+        self.base_link_frame_id = self.get_parameter("base_link_frame_id").value
         self.publish_active_segments = self.get_parameter("publish_active_segments").value
         self.nickname = self.get_parameter("nickname").value
+        self.use_multiple_cams = self.get_parameter("use_multiple_cams").value
         config_path = self.get_parameter("config_path").value
+        
+        assert self.base_link_frame_id != "", "base_link_frame_id must be set"
 
         if self.visualize:
             self.map_frame_id = self.get_parameter("map_frame_id").value
@@ -88,8 +92,8 @@ class RomanMapNode(Node):
                 self.viz_rotate_img = None
         if self.output_file != "":
             self.output_file = os.path.expanduser(self.output_file)
-            self.pose_history = []
-            self.time_history = []
+            output_file_parent = Path(self.output_file).parent
+            output_file_parent.mkdir(parents=True, exist_ok=True)
             self.get_logger().info(f"Output file: {self.output_file}")
         else:
             self.output_file = None
@@ -110,7 +114,12 @@ class RomanMapNode(Node):
            mapper_params,
            camera_params=color_params
         )
-        self.mapper.set_T_camera_flu(T_camera_flu)
+        
+        # handle transforming segments in ROS node to support listening to multiple cameras.
+        # internally, the mapper assumes a single camera, we will say that the camera is pointed 
+        # xyz = forward-right-up
+        self.mapper.set_T_camera_flu(np.eye(4))
+        self.T_camera_flu_set = False
 
         self.setup_ros()
 
@@ -120,14 +129,16 @@ class RomanMapNode(Node):
         self.segments_pub = self.create_publisher(roman_msgs.Segment, "roman/segment_updates", qos_profile=10)
         self.pulse_pub = self.create_publisher(std_msgs.Empty, "roman/pulse", qos_profile=10)
 
+        # ros tf
+        self.tf_buffer = tf2_ros.Buffer()
+        self.tf_listener = tf2_ros.TransformListener(self.tf_buffer, self)
+
         # ros subscribers
         self.create_subscription(roman_msgs.ObservationArray, "roman/observations", self.obs_cb, 10)
 
         # visualization
         if self.visualize:
             self.last_viz_t = -np.inf
-            self.tf_buffer = tf2_ros.Buffer()
-            self.tf_listener = tf2_ros.TransformListener(self.tf_buffer, self)
             
             self.create_subscription(sensor_msgs.Image, "color/image_raw", self.viz_cb, 10)
             self.bridge = cv_bridge.CvBridge()
@@ -136,6 +147,16 @@ class RomanMapNode(Node):
 
         self.log_and_send_status("ROMAN Map Node setup complete.", status=NodeInfoMsg.STARTUP)
         self.log_and_send_status("Waiting for observation.", status=NodeInfoMsg.STARTUP)
+
+    def set_T_camera_flu(self, obs_array_msg):
+        """
+        Gets transform to set mapper T_camera_flu
+        """
+        # get transform from camera to base_link
+        transform_stamped_msg = self.tf_buffer.lookup_transform(self.base_link_frame_id,  obs_array_msg.header.frame_id, obs_array_msg.header.stamp, rclpy.duration.Duration(seconds=2.0))
+        T_baselink_camera = rnp.numpify(transform_stamped_msg.transform).astype(np.float64)
+        self.mapper.set_T_camera_flu(np.linalg.inv(T_baselink_camera))
+        self.T_camera_flu_set = True
 
     def obs_cb(self, obs_array_msg):
         """
@@ -162,7 +183,16 @@ class RomanMapNode(Node):
         assert all([obs.time == t for obs in observations])
 
         inactive_ids = [segment.id for segment in self.mapper.inactive_segments]
-        self.mapper.update(time_stamp_to_float(obs_array_msg.header.stamp), rnp.numpify(obs_array_msg.pose), observations)
+        
+        if not self.use_multiple_cams:
+            if not self.T_camera_flu_set:
+                self.set_T_camera_flu(obs_array_msg)
+            pose = rnp.numpify(obs_array_msg.pose) # camera frame (T_camera_flu applied internally)
+        else:
+            pose = rnp.numpify(obs_array_msg.pose_flu) # base link frame
+
+
+        self.mapper.update(time_stamp_to_float(obs_array_msg.header.stamp), pose, observations)
         updated_inactive_ids = [segment.id for segment in self.mapper.inactive_segments]
         new_inactive_ids = [seg_id for seg_id in updated_inactive_ids if seg_id not in inactive_ids]
 
@@ -176,10 +206,6 @@ class RomanMapNode(Node):
             for segment in self.mapper.segments:
                 self.publish_segment(segment)
         
-        if self.output_file is not None:
-            self.pose_history.append(rnp.numpify(obs_array_msg.pose_flu))
-            self.time_history.append(t)
-
     def publish_segment(self, segment: Segment):
         if self.object_ref == 'bottom_middle':
             segment.set_center_ref('bottom_middle')
