@@ -38,8 +38,6 @@ windows:
 
 - window_name: camera
   layout: tiled
-  environment: 
-    KIMERA_VIO_CAMERA: ${CAMERA}
   shell_command_before:
   - source $ROMAN_ROS_WS/install/setup.zsh
   - export RMW_IMPLEMENTATION=rmw_zenoh_cpp
@@ -55,6 +53,8 @@ windows:
 
 - window_name: kimera_vio_ros1_docker
   layout: tiled
+  environment: 
+    KIMERA_VIO_CAMERA: ${CAMERA}
   shell_command_before:
   - source $ROMAN_ROS_WS/install/setup.zsh
   - export RMW_IMPLEMENTATION=rmw_zenoh_cpp
