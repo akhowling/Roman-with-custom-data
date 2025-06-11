@@ -15,6 +15,32 @@ options:
   default-command: /bin/zsh
 
 windows:
+- window_name: control
+  layout: even-vertical
+  shell_command_before:
+  - source $ROMAN_ROS_WS/install/setup.zsh
+  - export RMW_IMPLEMENTATION=rmw_zenoh_cpp
+  panes:
+  - echo "\n\n\n";
+    echo "INSTRUCTIONS:";
+    echo "Do not move the camera during startup.";
+    echo "Once you see odometry messages published below, go ahead and start moving.";
+    echo "Once you have finished your run, push enter with the focus in the bottom panel (the bottom panel will be in focus by default).";
+    echo "This will kill the session cleanly."
+  - for i in {1..10};
+    do
+    ros2 topic echo /robot/kimera_vio_ros/odometry --field pose.pose.position;
+    sleep 1; 
+    done || echo "Kimera-VIO seems to have failed starting. Please kill and try again."
+  - echo "PRESS ENTER TO KILL";
+    tmux send-keys -t roman_ros2:kimera_vio_ros1_docker C-d '"' &&
+    tmux send-keys -t roman_ros2:kimera_vio_ros1_docker 'tmux kill-session -t kimera_vio_ros1_docker' Enter &&
+    tmux send-keys -t roman_ros2:roman.1 C-c &&
+    tmux send-keys -t roman_ros2:record.0 C-c &&
+    sleep 5 &&
+    tmux kill-session \
+
+
 - window_name: roman
   layout: tiled
   shell_command_before:
@@ -28,14 +54,7 @@ windows:
     launch_mapping:=true output_dir:=$OUTPUT_DIR
   - ros2 launch roman_ros2 roman.launch.yaml robot_name:=$ROBOT_NAME camera:=$CAMERA 
     launch_loop_closure:=true launch_loop_closure_viz:=true output_dir:=$OUTPUT_DIR
-  - echo "PRESS ENTER TO KILL";
-    tmux send-keys -t roman_ros2:kimera_vio_ros1_docker C-d '"' &&
-    tmux send-keys -t roman_ros2:kimera_vio_ros1_docker 'tmux kill-session -t kimera_vio_ros1_docker' Enter &&
-    tmux send-keys -t roman_ros2:roman.1 C-c &&
-    tmux send-keys -t roman_ros2:record.0 C-c &&
-    sleep 5 &&
-    tmux kill-session \
-    # docker stop $(docker ps -q --filter ancestor=kimera-vio-docker ) && 
+  - rviz2 -d $ROMAN_ROS_WS/src/roman_ros2/examples/d455_single_session/d455_online.rviz
 
 - window_name: camera
   layout: tiled
