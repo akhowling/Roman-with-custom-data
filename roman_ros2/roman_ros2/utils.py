@@ -110,7 +110,6 @@ def segment_to_msg(robot_id: int, segment: Segment):
     Returns:
         roman_msgs.Segment: segment message
     """
-    e = segment.normalized_eigenvalues()
     segment_msg = roman_msgs.Segment(
         header=std_msgs.Header(stamp=float_to_ros_time(segment.last_seen)),
         robot_id=robot_id,
@@ -118,7 +117,7 @@ def segment_to_msg(robot_id: int, segment: Segment):
         position=rnp.msgify(geometry_msgs.Point, centroid_from_segment(segment)),
         # volume=estimate_volume(segment.points) if segment.points is not None else 0.0,
         volume=segment.volume,
-        shape_attributes=[segment.volume, segment.linearity(e), segment.planarity(e), segment.scattering(e)],
+        shape_attributes=[segment.volume, segment.linearity, segment.planarity, segment.scattering],
         semantic_descriptor=segment.semantic_descriptor.flatten().tolist() if segment.semantic_descriptor is not None else None,
     )
     return segment_msg

@@ -160,7 +160,7 @@ class FastSAMNode(Node):
         img = self.bridge.imgmsg_to_cv2(img_msg, desired_encoding='bgr8')
         depth = self.bridge.imgmsg_to_cv2(depth_msg)
 
-        observations = self.fastsam.run(t, pose, img, img_depth=depth)
+        observations = self.fastsam.run(t, pose, img, depth_data=depth)
 
         observation_msgs = [observation_to_msg(obs) for obs in observations]
         
