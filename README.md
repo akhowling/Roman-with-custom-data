@@ -2,11 +2,11 @@
 
 <img src="./media/opposite_view_loop_closure.jpg" alt="Opposite view loop closure" width="500"/>
 
-Welcome to roman_ros2, a ROS2 wrapper for [ROMAN](https://acl.mit.edu/ROMAN/) (<ins>R</ins>obust <ins>O</ins>bject <ins>M</ins>ap <ins>A</ins>lignment A<ins>n</ins>ywhere).
+Welcome to roman_ros2, a ROS2 wrapper for [ROMAN](https://github.com/mit-acl/ROMAN) (<ins>R</ins>obust <ins>O</ins>bject <ins>M</ins>ap <ins>A</ins>lignment A<ins>n</ins>ywhere).
 ROMAN is a view-invariant global localization method that maps open-set objects and uses the geometry, shape, and semantics of objects to find the transformation between a current pose and previously created object map.
 This enables loop closure between robots even when a scene is observed from *opposite views.*
 
-Demo videos, the paper, and more can be found at the [ROMAN project website](https://acl.mit.edu/ROMAN-project/). 
+Demo videos, the paper, and more can be found at the [ROMAN project website](https://acl.mit.edu/roman/). 
 Checkout the main branch for the ROS1 wrapper.
 
 ## Citation
