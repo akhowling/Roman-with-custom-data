@@ -86,7 +86,7 @@ def observation_to_msg(observation: Observation):
         mask=observation.mask_downsampled.flatten().astype(np.int8).tolist() if observation.mask is not None else None,
         point_cloud=(observation.point_cloud.flatten().tolist() 
                      if observation.point_cloud is not None else None),
-        descriptor=observation.clip_embedding.flatten().tolist() if observation.clip_embedding is not None else None,
+        descriptor=observation.clip_embedding.flatten().tolist() if observation.clip_embedding is not None else [],
     )
     return observation_msg
 
@@ -118,7 +118,7 @@ def segment_to_msg(robot_id: int, segment: Segment):
         # volume=estimate_volume(segment.points) if segment.points is not None else 0.0,
         volume=segment.volume,
         shape_attributes=[segment.volume, segment.linearity, segment.planarity, segment.scattering],
-        semantic_descriptor=segment.semantic_descriptor.flatten().tolist() if segment.semantic_descriptor is not None else None,
+        semantic_descriptor=segment.semantic_descriptor.flatten().tolist() if segment.semantic_descriptor is not None else [],
     )
     return segment_msg
 
@@ -139,7 +139,7 @@ def msg_to_segment(segment_msg: roman_msgs.Segment) -> SegmentMinimalData:
         linearity=segment_msg.shape_attributes[1],
         planarity=segment_msg.shape_attributes[2],
         scattering=segment_msg.shape_attributes[3],
-        semantic_descriptor=np.array(segment_msg.semantic_descriptor) if segment_msg.semantic_descriptor is not None else None,
+        semantic_descriptor=np.array(segment_msg.semantic_descriptor) if len(segment_msg.semantic_descriptor) != 0 else None,
         extent=None,
         first_seen=None,
         last_seen=time_stamp_to_float(segment_msg.header.stamp),
