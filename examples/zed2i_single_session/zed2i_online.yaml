@@ -1,0 +1,74 @@
+session_name: roman_ros2
+
+environment:
+  CAMERA: zed2i
+  ROBOT_NAME: robot
+  ROMAN_ROS_WS: ${ROMAN_ROS_WS}
+  ROMAN_ENV_ACTIVATE: ${ROMAN_ENV_ACTIVATE}
+  OUTPUT_DIR: ${OUTPUT_DIR}
+  RECORD: ${RECORD}
+
+options:
+  default-command: /bin/zsh
+
+windows:
+- window_name: control
+  layout: even-vertical
+  shell_command_before:
+  - source $ROMAN_ROS_WS/install/setup.zsh
+  - export RMW_IMPLEMENTATION=rmw_zenoh_cpp
+  panes:
+  - echo "\n\n\n";
+    echo "INSTRUCTIONS:";
+    echo "Move around and create a map with your camera.";
+    echo "Once you have finished your run, push enter with the focus in the bottom panel (the bottom panel will be in focus by default).";
+    echo "This will kill the session cleanly."
+  - echo "PRESS ENTER TO KILL";
+    tmux send-keys -t roman_ros2:roman.1 C-c &&
+    tmux send-keys -t roman_ros2:record.0 C-c &&
+    sleep 3 &&
+    tmux kill-session \
+
+
+- window_name: roman
+  layout: tiled
+  shell_command_before:
+  - source $ROMAN_ROS_WS/install/setup.zsh
+  - export RMW_IMPLEMENTATION=rmw_zenoh_cpp
+  - $ROMAN_ENV_ACTIVATE
+  panes:
+  - ros2 launch roman_ros2 roman.launch.yaml robot_name:=$ROBOT_NAME camera:=$CAMERA 
+    launch_fastsam:=true
+  - ros2 launch roman_ros2 roman.launch.yaml robot_name:=$ROBOT_NAME camera:=$CAMERA 
+    launch_mapping:=true output_dir:=$OUTPUT_DIR
+  - ros2 launch roman_ros2 roman.launch.yaml robot_name:=$ROBOT_NAME camera:=$CAMERA 
+    launch_loop_closure:=true launch_loop_closure_viz:=true output_dir:=$OUTPUT_DIR
+  - rviz2 -d $ROMAN_ROS_WS/src/roman_ros2/examples/d455_single_session/d455_online.rviz
+
+- window_name: camera
+  layout: tiled
+  shell_command_before:
+  - source $ROMAN_ROS_WS/install/setup.zsh
+  - export RMW_IMPLEMENTATION=rmw_zenoh_cpp
+  panes:
+  - ros2 run rmw_zenoh_cpp rmw_zenohd
+  - ros2 launch zed_wrapper zed_camera.launch.py namespace:=$ROBOT_NAME 
+    camera_model:=$CAMERA openni_depth_mode:=true
+
+- window_name: record
+  layout: tiled
+  shell_command_before:
+  - source $ROMAN_ROS_WS/install/setup.zsh
+  - export RMW_IMPLEMENTATION=rmw_zenoh_cpp
+  panes:
+  - if [ "$RECORD" = true ]; 
+    then 
+    ros2 bag record -o $OUTPUT_DIR/bag
+    /$ROBOT_NAME/$CAMERA/color/camera_info
+    /$ROBOT_NAME/$CAMERA/color/image_raw
+    /$ROBOT_NAME/$CAMERA/aligned_depth_to_color/camera_info
+    /$ROBOT_NAME/$CAMERA/aligned_depth_to_color/image_raw
+    /$ROBOT_NAME/kimera_vio_ros/odometry
+    /tf
+    /tf_static; 
+    fi
