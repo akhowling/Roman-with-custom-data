@@ -1,0 +1,52 @@
+---
+launch:
+  - arg: {name: robot_name}
+  - arg: {name: camera}
+  - arg: {name: output_dir, default: "~/.roman_ros2"}
+  - arg: {name: launch_fastsam, default: "false"}
+  - arg: {name: launch_mapping, default: "false"}
+  - arg: {name: launch_loop_closure, default: "false"}
+  - arg: {name: launch_loop_closure_viz, default: "false"}
+
+  - node:
+      if: $(var launch_fastsam)
+      pkg: roman_ros2
+      exec: fastsam_node.py
+      name: fastsam_node
+      namespace: $(var robot_name)
+      param:
+        - from: $(find-pkg-share roman_ros2)/cfg/$(var camera)/fastsam_node.yaml
+          allow_substs: true
+        - {name: config_path, value: $(find-pkg-share roman_ros2)/cfg/$(var camera)/fastsam.yaml}
+
+  - node:
+      if: $(var launch_mapping)
+      pkg: roman_ros2
+      exec: roman_map_node.py
+      name: roman_map_node
+      namespace: $(var robot_name)
+      param:
+        - from: $(find-pkg-share roman_ros2)/cfg/$(var camera)/roman_map_node.yaml
+          allow_substs: true
+        - {name: output_roman_map, value: $(var output_dir)/roman_map.pkl}
+
+  - node:
+      if: $(var launch_loop_closure)
+      pkg: roman_ros2
+      exec: roman_loop_closure_node.py
+      name: roman_lc_node
+      param:
+        - from: $(find-pkg-share roman_ros2)/cfg/$(var camera)/roman_loop_closure_node.yaml
+          allow_substs: true
+        - {name: config_path, value: $(find-pkg-share roman_ros2)/cfg/$(var camera)/roman_loop_closure.yaml}
+
+  - node:
+      if: $(var launch_loop_closure_viz)
+      pkg: roman_ros2
+      exec: lc_viz_node.py
+      name: lc_viz_node
+      param:
+        - from: $(find-pkg-share roman_ros2)/cfg/$(var camera)/roman_loop_closure_node.yaml
+          allow_substs: true
+        - {name: config_path, value: $(find-pkg-share roman_ros2)/cfg/$(var camera)/roman_loop_closure.yaml}
+        - {name: output_dir, value: $(var output_dir)}
