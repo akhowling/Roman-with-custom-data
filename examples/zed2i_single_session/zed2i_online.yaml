@@ -53,7 +53,7 @@ windows:
   panes:
   - ros2 run rmw_zenoh_cpp rmw_zenohd
   - ros2 launch zed_wrapper zed_camera.launch.py namespace:=$ROBOT_NAME 
-    camera_model:=$CAMERA openni_depth_mode:=true
+    camera_model:=$CAMERA
 
 - window_name: record
   layout: tiled
@@ -64,11 +64,11 @@ windows:
   - if [ "$RECORD" = true ]; 
     then 
     ros2 bag record -o $OUTPUT_DIR/bag
-    /$ROBOT_NAME/$CAMERA/color/camera_info
-    /$ROBOT_NAME/$CAMERA/color/image_raw
-    /$ROBOT_NAME/$CAMERA/aligned_depth_to_color/camera_info
-    /$ROBOT_NAME/$CAMERA/aligned_depth_to_color/image_raw
-    /$ROBOT_NAME/kimera_vio_ros/odometry
+    /$ROBOT_NAME/zed/rgb/camera_info
+    /$ROBOT_NAME/zed/rgb/image_rect_color
+    /$ROBOT_NAME/zed/depth/camera_info
+    /$ROBOT_NAME/zed/depth/depth_registered
+    /$ROBOT_NAME/zed/odom
     /tf
     /tf_static; 
     fi
