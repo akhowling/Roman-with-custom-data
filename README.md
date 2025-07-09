@@ -28,21 +28,30 @@ M.B. Peterson, Y.X. Jia, Y. Tian, A. Thomas, and J.P. How, "ROMAN: Open-Set Obje
 
 # Install
 
-In the root directory of your ROS workspace run:
+#### Step 1: Set up and build ROS workspace
+
+In the **root directory of your ROS workspace** (for example, `mkdir ~/roman_ws && cd ~/roman_ws`) run:
 
 ```
-git clone -b ros2 git@github.com:mit-acl/roman_ros.git src/roman_ros2
+git clone https://github.com/mit-acl/roman_ros.git src/roman_ros2
 vcs import src < src/roman_ros2/install/packages.yaml
 colcon build
 ```
 
-Then, activate the python environment you would like to use with ROMAN and run:
+#### Step 2: Install ROMAN Python package
+
+First, **activate the python environment** you would like to use with ROMAN.
+For example, you can build and source a Python virtual environment with `python3 -m venv ~/roman_ws/venv && source ~/roman_ws_venv/bin/activate`.
+
+Once your environment has been activated, run
 
 ```
 ./src/roman_ros2/install/install_roman.bash
 ```
 
 to install the ROMAN python package and download required model weights.
+
+#### Step 3: Set up environment variables
 
 For running `roman_ros2`, you will need to set the `ROMAN_WEIGHTS` environment variable. 
 You may want to run the following to add this environment variable to your `.zshrc` file:
@@ -64,10 +73,23 @@ Before running the examples run (or put the following in your `~/.zshrc` or `~/.
 export ROMAN_ENV_ACTIVATE=<environment activation command>
 ```
 
+If you used a Python virtual environment as described above, this would look something like: `export ROMAN_ENV_ACTIVATE="source ~/roman_ws/venv/bin/activate"`
+
 # Examples
 
 A few example demos can be run following the [examples instructions](./examples/README.md).
 The provided examples include running ROMAN on a pre-recorded bag, using ROMAN for single robot loop closures, and the main `roman_ros2` demo that creates ROMAN maps across two camera sessions and then aligns the maps from the camera sessions without any initial pose information.
+
+# Device Requirements
+
+To run ROMAN with full performance, a GPU is required. 
+However, ROMAN can still be run on CPU only although semantics cannot be computed and ROMAN will run much slower, which both cause a degradation in performance.
+
+If you would like to configure the repo to use CPU, cd into this repo and run
+
+```
+python3 ./scripts/configure_cpu_or_gpu.py --device cpu
+```
 
 ---
 

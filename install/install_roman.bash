@@ -24,3 +24,4 @@ gdown 'https://drive.google.com/uc?id=1m1sjY4ihXBU1fZXdQ-Xdj-mDltW-2Rqv'
 
 # maybe handle this somewhere else
 sudo apt install ros-${ROS_DISTRO}-tf-transformations
+sudo apt install ros-${ROS_DISTRO}-image-transport
