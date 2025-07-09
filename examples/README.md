@@ -1,5 +1,17 @@
 # Examples
 
+Examples are provided for running ROMAN online with a D455 or Zed2i, or for running ROMAN on a bag.
+
+The online examples are set up so that the user:
+1. Creates an initial map in a first session
+2. Ends the first session and sets up for a second run (perhaps starting from a new location)
+3. Creates a second map and uses ROMAN to relocalize in the previous map
+
+After running the two sessions, a video is created showing the best set of associations found by ROMAN.
+Example output can be visualized in [this YouTube video](https://www.youtube.com/watch?v=y51NDoPpBy8&t=5s).
+
+The following sections give further instructions for setting up and running the examples.
+
 ## `roman_ros2` with D455 RealSense stereo camera and Kimera-VIO
 
 #### Demo setup

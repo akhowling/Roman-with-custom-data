@@ -90,7 +90,7 @@ windows:
     then 
     ros2 bag record -o $OUTPUT_DIR/bag
     /$ROBOT_NAME/$CAMERA/color/camera_info
-    /$ROBOT_NAME/$CAMERA/color/image_raw
+    /$ROBOT_NAME/$CAMERA/color/image_raw/compressed
     /$ROBOT_NAME/$CAMERA/aligned_depth_to_color/camera_info
     /$ROBOT_NAME/$CAMERA/aligned_depth_to_color/image_raw
     /$ROBOT_NAME/kimera_vio_ros/odometry

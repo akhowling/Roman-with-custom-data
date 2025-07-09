@@ -8,6 +8,9 @@ launch:
   - arg: {name: launch_loop_closure, default: "false"}
   - arg: {name: launch_loop_closure_viz, default: "false"}
 
+  #########################################
+  #                 d455                  #
+  #########################################
   - group:
     - set_remap: {from: color/camera_info, to: $(var camera)/color/camera_info}
     - set_remap: {from: color/image_raw, to: $(var camera)/color/image_raw}
@@ -16,45 +19,37 @@ launch:
     - set_remap: {from: tf, to: /tf}
     - set_remap: {from: tf_static, to: /tf_static}
 
-    - node:
-        if: $(var launch_fastsam)
-        pkg: roman_ros2
-        exec: fastsam_node.py
-        name: fastsam_node
-        namespace: $(var robot_name)
-        param:
-          - from: $(find-pkg-share roman_ros2)/cfg/$(var camera)/fastsam_node.yaml
-            allow_substs: true
-          - {name: config_path, value: $(find-pkg-share roman_ros2)/cfg/$(var camera)/fastsam.yaml}
-
-    - node:
-        if: $(var launch_mapping)
-        pkg: roman_ros2
-        exec: roman_map_node.py
-        name: roman_map_node
-        namespace: $(var robot_name)
-        param:
-          - from: $(find-pkg-share roman_ros2)/cfg/$(var camera)/roman_map_node.yaml
-            allow_substs: true
-          - {name: output_roman_map, value: $(var output_dir)/roman_map.pkl}
-
-    - node:
-        if: $(var launch_loop_closure)
-        pkg: roman_ros2
-        exec: roman_loop_closure_node.py
-        name: roman_lc_node
-        param:
-          - from: $(find-pkg-share roman_ros2)/cfg/$(var camera)/roman_loop_closure_node.yaml
-            allow_substs: true
-          - {name: config_path, value: $(find-pkg-share roman_ros2)/cfg/$(var camera)/roman_loop_closure.yaml}
-
-    - node:
-        if: $(var launch_loop_closure_viz)
-        pkg: roman_ros2
-        exec: lc_viz_node.py
-        name: lc_viz_node
-        param:
-          - from: $(find-pkg-share roman_ros2)/cfg/$(var camera)/roman_loop_closure_node.yaml
-            allow_substs: true
-          - {name: config_path, value: $(find-pkg-share roman_ros2)/cfg/$(var camera)/roman_loop_closure.yaml}
+    - include:
+        if: $(eval '"$(var camera)" == "d455"')
+        file: $(find-pkg-share roman_ros2)/launch/roman_node.launch.yaml
+        arg:
+          - {name: robot_name, value: $(var robot_name)}
+          - {name: camera, value: $(var camera)}
           - {name: output_dir, value: $(var output_dir)}
+          - {name: launch_fastsam, value: $(var launch_fastsam)}
+          - {name: launch_mapping, value: $(var launch_mapping)}
+          - {name: launch_loop_closure, value: $(var launch_loop_closure)}
+          - {name: launch_loop_closure_viz, value: $(var launch_loop_closure_viz)}
+      
+  #########################################
+  #                zed2i                  #
+  #########################################
+  - group:
+    - set_remap: {from: color/camera_info, to: zed/rgb/camera_info}
+    - set_remap: {from: color/image_raw, to: zed/rgb/image_rect_color}
+    - set_remap: {from: depth/camera_info, to: zed/depth/camera_info}
+    - set_remap: {from: depth/image_raw, to: zed/depth/depth_registered}
+    - set_remap: {from: tf, to: /tf}
+    - set_remap: {from: tf_static, to: /tf_static}
+
+    - include:
+        if: $(eval '"$(var camera)" == "zed2i"')
+        file: $(find-pkg-share roman_ros2)/launch/roman_node.launch.yaml
+        arg:
+          - {name: robot_name, value: $(var robot_name)}
+          - {name: camera, value: $(var camera)}
+          - {name: output_dir, value: $(var output_dir)}
+          - {name: launch_fastsam, value: $(var launch_fastsam)}
+          - {name: launch_mapping, value: $(var launch_mapping)}
+          - {name: launch_loop_closure, value: $(var launch_loop_closure)}
+          - {name: launch_loop_closure_viz, value: $(var launch_loop_closure_viz)}

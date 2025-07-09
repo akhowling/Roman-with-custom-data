@@ -13,6 +13,7 @@ setup(
         ('share/' + package_name, ['package.xml']),
         ('share/' + package_name + '/launch', glob('launch/*.launch.*')),
         ('share/' + package_name + '/cfg/d455', glob('cfg/d455/*.yaml')),
+        ('share/' + package_name + '/cfg/zed2i', glob('cfg/zed2i/*.yaml')),
     ],
     install_requires=[
         'setuptools',

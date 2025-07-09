@@ -3,9 +3,9 @@ runs: [run1, run2]
 run_env: "RUN"
 img_data:
     path: ${OUTPUT_ROOT}/${RUN}/bag
-    topic: /robot/d455/color/image_raw
+    topic: /robot/d455/color/image_raw/compressed
     camera_info_topic: /robot/d455/color/camera_info
-    compressed: False
+    compressed: True
     color_space: 'bgr8'
 depth_data:
     path: ${OUTPUT_ROOT}/${RUN}/bag
