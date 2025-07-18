@@ -5,6 +5,7 @@ from numpy.linalg import inv
 from dataclasses import dataclass
 from typing import List
 from copy import deepcopy
+import time
 
 # ROS imports
 import rclpy
@@ -181,7 +182,9 @@ class ROMANLoopClosureNode(ROMANLoopClosureNodeBaseClass):
         self.time_eps = 1.0
         self.covariance = np.diag([np.deg2rad(self.lc_std_dev_rotation_deg)**2]*3 + 
                                   [self.lc_std_dev_translation_m**2]*3)
-        
+        # time taken, id1, id2, submap_id1, submap_id2
+        self.last_lc_info = np.array([-1, -1, -1, -1, -1]).astype(np.float64)
+         
         self.segment_queues = {
             live_id: SegmentQueue(self.submap_num_segments, self.submap_overlapping_segments)
         for live_id in self.live_ids}
@@ -231,6 +234,14 @@ class ROMANLoopClosureNode(ROMANLoopClosureNodeBaseClass):
         """
         Callback function for segment messages.
         """
+        detection_time_info_str = f"Last detection time: {self.last_lc_info[0]} ms" \
+            if self.last_lc_info[0] >= 0 else "No loop closure detection run yet."
+        last_lc_info_str = f"Last loop closure between robot_ids: " + \
+                f"({int(self.last_lc_info[1])}, {int(self.last_lc_info[2])})" + \
+                f" and submaps: ({int(self.last_lc_info[3])}, {int(self.last_lc_info[4])})." \
+                if self.last_lc_info[1] >= 0 else "No loop closure found yet."
+        self.send_status_msg(detection_time_info_str + " " + last_lc_info_str, 
+                             status=NodeInfoMsg.NOMINAL)
         segment = msg_to_segment(seg_msg)
         seg_update_res = self.segment_queues[robot_id].update(segment)
 
@@ -285,6 +296,9 @@ class ROMANLoopClosureNode(ROMANLoopClosureNodeBaseClass):
 
         self.submaps[robot_id].append(submap)
 
+        prior_last_lc_info = deepcopy(self.last_lc_info)
+        start_t = time.time()
+
         # run submap registration
         if robot_id == self.ego_id:
             for r2 in self.all_ids:
@@ -292,6 +306,14 @@ class ROMANLoopClosureNode(ROMANLoopClosureNodeBaseClass):
         else:
             # run registration with ego robot
             self.run_submap_registration(submap, robot_id, self.ego_robot)
+
+        end_t = time.time()
+
+        self.last_lc_info[0] = np.round((end_t - start_t) * 1e3, 1)
+        if np.all(prior_last_lc_info[1:] == self.last_lc_info[1:]):
+            self.log_and_send_status(f"No loop closures found for robot {robot_id}, submap {submap.id}. Detection time: {self.last_lc_info[0]} ms")
+        else:
+            self.log_and_send_status(f"Loop closure found for robot {robot_id}, submap {submap.id}. Detection time: {self.last_lc_info[0]} ms")
             
 
     def run_submap_registration(self, submap: Submap, robot_id: int, other_id: int):
@@ -339,6 +361,7 @@ class ROMANLoopClosureNode(ROMANLoopClosureNodeBaseClass):
             lc_msg = lc_to_msg(robot_id, other_id, submap, submap2, associations, 
                                T_submap1_submap2, self.covariance, self.get_clock().now().to_msg())
             self.loop_closure_pub.publish(lc_msg)
+            self.last_lc_info[1:] = [robot_id, other_id, submap.id, submap2.id]
 
     def log_and_send_status(self, note, status=NodeInfoMsg.NOMINAL):
         """

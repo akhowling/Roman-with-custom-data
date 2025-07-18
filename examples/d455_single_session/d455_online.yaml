@@ -37,7 +37,7 @@ windows:
     tmux send-keys -t roman_ros2:kimera_vio_ros1_docker 'tmux kill-session -t kimera_vio_ros1_docker' Enter &&
     tmux send-keys -t roman_ros2:roman.1 C-c &&
     tmux send-keys -t roman_ros2:record.0 C-c &&
-    sleep 5 &&
+    sleep 3 &&
     tmux kill-session \
 
 

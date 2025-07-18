@@ -35,6 +35,7 @@ launch:
       pkg: roman_ros2
       exec: roman_loop_closure_node.py
       name: roman_lc_node
+      namespace: $(var robot_name)
       param:
         - from: $(find-pkg-share roman_ros2)/cfg/$(var camera)/roman_loop_closure_node.yaml
           allow_substs: true
@@ -45,6 +46,7 @@ launch:
       pkg: roman_ros2
       exec: lc_viz_node.py
       name: lc_viz_node
+      namespace: $(var robot_name)
       param:
         - from: $(find-pkg-share roman_ros2)/cfg/$(var camera)/roman_loop_closure_node.yaml
           allow_substs: true
