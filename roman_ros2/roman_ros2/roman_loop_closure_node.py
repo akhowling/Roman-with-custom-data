@@ -293,6 +293,10 @@ class ROMANLoopClosureNode(ROMANLoopClosureNodeBaseClass):
             segment = deepcopy(seg_i)
             segment.transform(np.linalg.inv(submap.pose_gravity_aligned))
             submap.segments.append(segment)
+        if self.submap_align_params.submap_descriptor == 'mean_semantic':
+            submap.descriptor = \
+                np.mean([seg.semantic_descriptor.flatten() for seg in submap.segments], axis=0)
+            submap.descriptor /= np.linalg.norm(submap.descriptor)
 
         self.submaps[robot_id].append(submap)
 
@@ -322,6 +326,11 @@ class ROMANLoopClosureNode(ROMANLoopClosureNodeBaseClass):
             # check if submap2 is already registered
             if submap2.id == submap.id and robot_id == other_id:
                 continue
+
+            if self.submap_align_params.submap_descriptor == 'mean_semantic':
+                if np.dot(submap.descriptor.reshape(-1), submap2.descriptor.reshape(-1)) \
+                        < self.submap_align_params.submap_descriptor_thresh:
+                    continue
 
             # run registration
             try:
