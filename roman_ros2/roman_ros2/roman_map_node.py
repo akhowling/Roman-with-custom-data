@@ -53,22 +53,22 @@ class RomanMapNode(Node):
         self.declare_parameters(
             namespace='',
             parameters=[
-                ("robot_id", 0),
-                ("config_path", ""),
-                ("visualize", False),
-                ("output_roman_map", ""),
-                ("map_frame_id", "map"),
-                ("base_link_frame_id", ""),
-                ("object_ref", "bottom_middle"),
-                ("publish_active_segments", False),
-                ("nickname", "roman_map"),
-                ("use_multiple_cams", False),
-                ("timing_window", 10),
-                ("viz_num_objs", 20),
-                ("viz_pts_per_obj", 250),
-                ("viz_min_viz_dt", 2.0),
-                ("viz_rotate_img", ""),
-                ("viz_pointcloud", False)
+                ("robot_id", 0),                        # robot id for this node
+                ("config_path", ""),                    # non-ros ROMAN mapper.yaml param file
+                ("visualize", False),                   # whether to publish annotated images
+                ("output_roman_map", ""),               # output file to save the map to (must kill node with ctrl-c)
+                ("odom_frame_id", "odom"),              # odometry frame id to map objects in
+                ("base_flu_frame_id", "base_link"),     # robot coordinate frame with xyz = forward left up
+                ("object_ref", "center"),               # bottom_middle or center, what reference point to use for objects
+                ("publish_active_segments", False),     # whether to wait till segments are inactive before publishing them
+                ("nickname", "roman_map"),              # nickname for this node
+                ("use_multiple_cams", False),           # whether mapper will get FastSAM measurements from multiple cameras
+                ("timing_window", 10),                  # timing window used for report processing speed
+                ("viz_num_objs", 20),                   # maximum number of objects to visualize
+                ("viz_pts_per_obj", 250),               # number of points to visualize per object
+                ("viz_min_viz_dt", 0.25),               # minimum time between visualizations
+                ("viz_rotate_img", ""),                 # rotate image for visualization, options: CW, CCW, 180
+                ("viz_pointcloud", False)               # whether to publish pointcloud of objects
             ]
         )
 
@@ -76,7 +76,7 @@ class RomanMapNode(Node):
         self.visualize = self.get_parameter("visualize").value
         self.output_file = self.get_parameter("output_roman_map").value
         self.object_ref = self.get_parameter("object_ref").value
-        self.base_link_frame_id = self.get_parameter("base_link_frame_id").value
+        self.base_flu_frame_id = self.get_parameter("base_flu_frame_id").value
         self.publish_active_segments = self.get_parameter("publish_active_segments").value
         self.nickname = self.get_parameter("nickname").value
         self.use_multiple_cams = self.get_parameter("use_multiple_cams").value
@@ -84,10 +84,10 @@ class RomanMapNode(Node):
         self.timing_fifo = TimingFifo(timing_window)
         config_path = self.get_parameter("config_path").value
         
-        assert self.base_link_frame_id != "", "base_link_frame_id must be set"
+        assert self.base_flu_frame_id != "", "base_flu_frame_id must be set"
 
         if self.visualize:
-            self.map_frame_id = self.get_parameter("map_frame_id").value
+            self.odom_frame_id = self.get_parameter("odom_frame_id").value
             self.viz_num_objs = self.get_parameter("viz_num_objs").value
             self.viz_pts_per_obj = self.get_parameter("viz_pts_per_obj").value
             self.min_viz_dt = self.get_parameter("viz_min_viz_dt").value
@@ -158,7 +158,7 @@ class RomanMapNode(Node):
         Gets transform to set mapper T_camera_flu
         """
         # get transform from camera to base_link
-        transform_stamped_msg = self.tf_buffer.lookup_transform(self.base_link_frame_id,  obs_array_msg.header.frame_id, obs_array_msg.header.stamp, rclpy.duration.Duration(seconds=2.0))
+        transform_stamped_msg = self.tf_buffer.lookup_transform(self.base_flu_frame_id,  obs_array_msg.header.frame_id, obs_array_msg.header.stamp, rclpy.duration.Duration(seconds=2.0))
         T_baselink_camera = rnp.numpify(transform_stamped_msg.transform).astype(np.float64)
         self.mapper.set_T_camera_flu(np.linalg.inv(T_baselink_camera))
         self.T_camera_flu_set = True
@@ -237,7 +237,7 @@ class RomanMapNode(Node):
         cam_frame_id = img_msg.header.frame_id
 
         try:
-            transform_stamped_msg = self.tf_buffer.lookup_transform(self.map_frame_id, cam_frame_id, img_msg.header.stamp, rclpy.duration.Duration(seconds=2.0))
+            transform_stamped_msg = self.tf_buffer.lookup_transform(self.odom_frame_id, cam_frame_id, img_msg.header.stamp, rclpy.duration.Duration(seconds=2.0))
         except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException) as ex:
             self.get_logger().warning("tf lookup failed")
             self.get_logger().warning(str(ex))
@@ -276,7 +276,7 @@ class RomanMapNode(Node):
         # Point cloud publishing
         # points_msg = sensor_msgs.PointCloud()
         # points_msg.header = img_msg.header
-        # points_msg.header.frame_id = self.map_frame_id
+        # points_msg.header.frame_id = self.odom_frame_id
         # points_msg.points = []
         # # points_msg.channels = [sensor_msgs.ChannelFloat32(name=channel, values=[]) for channel in ['r', 'g', 'b']]
         # points_msg.channels = [sensor_msgs.ChannelFloat32(name='rgb', values=[])]

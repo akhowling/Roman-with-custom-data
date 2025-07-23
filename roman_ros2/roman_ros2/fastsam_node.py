@@ -46,18 +46,18 @@ class FastSAMNode(Node):
         self.declare_parameters(
             namespace='',
             parameters=[
-                ("map_frame_id", "map"),
-                ("odom_base_frame_id", "base"),
-                ("config_path", ""),
-                ("min_dt", 0.1),
-                ("nickname", "fastsam"),
-                ("timing_window", 10),
+                ("odom_frame_id", "odom"),              # odometry frame id to map objects in
+                ("base_flu_frame_id", "base_link"),     # robot coordinate frame with xyz = forward left up
+                ("config_path", ""),                    # ROMAN fastsam.yaml path
+                ("min_dt", 0.1),                        # will not attempt to process images faster than this
+                ("nickname", "fastsam"),                # nickname for this node
+                ("timing_window", 10),                  # timing window for processing node processing speed
             ]
         )
 
         self.cam_frame_id = None
-        self.map_frame_id = self.get_parameter("map_frame_id").value
-        self.odom_base_frame_id = self.get_parameter("odom_base_frame_id").value
+        self.odom_frame_id = self.get_parameter("odom_frame_id").value
+        self.base_flu_frame_id = self.get_parameter("base_flu_frame_id").value
         self.min_dt = self.get_parameter("min_dt").value
         self.nickname = self.get_parameter("nickname").value
         timing_window = self.get_parameter("timing_window").value
@@ -146,9 +146,9 @@ class FastSAMNode(Node):
             self.last_t = t
 
         try:
-            # self.tf_buffer.waitForTransform(self.map_frame_id, self.cam_frame_id, img_msg.header.stamp, rospy.Duration(0.5))
-            transform_stamped_msg = self.tf_buffer.lookup_transform(self.map_frame_id, self.cam_frame_id, img_msg.header.stamp, rclpy.duration.Duration(seconds=1.0))
-            flu_transformed_stamped_msg = self.tf_buffer.lookup_transform(self.map_frame_id, self.odom_base_frame_id, img_msg.header.stamp, rclpy.duration.Duration(seconds=0.1))
+            # self.tf_buffer.waitForTransform(self.odom_frame_id, self.cam_frame_id, img_msg.header.stamp, rospy.Duration(0.5))
+            transform_stamped_msg = self.tf_buffer.lookup_transform(self.odom_frame_id, self.cam_frame_id, img_msg.header.stamp, rclpy.duration.Duration(seconds=1.0))
+            flu_transformed_stamped_msg = self.tf_buffer.lookup_transform(self.odom_frame_id, self.base_flu_frame_id, img_msg.header.stamp, rclpy.duration.Duration(seconds=0.1))
         except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException) as ex:
             self.log_and_send_status("tf lookup failed", status=NodeInfoMsg.WARNING)
             self.get_logger().warning(str(ex))
