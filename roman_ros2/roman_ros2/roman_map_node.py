@@ -40,14 +40,14 @@ from roman.object.segment import Segment
 from roman.viz import visualize_map_on_img
 
 # relative
-from roman_ros2.utils import observation_from_msg, segment_to_msg, time_stamp_to_float
+from roman_ros2.utils import observation_from_msg, segment_to_msg, \
+    time_stamp_to_float, TimingFifo
 
 class RomanMapNode(Node):
 
     def __init__(self):
         super().__init__('roman_map_node')
         self.up = True
-        self.timing_fifo = []
 
         # ros params
         self.declare_parameters(
@@ -80,7 +80,8 @@ class RomanMapNode(Node):
         self.publish_active_segments = self.get_parameter("publish_active_segments").value
         self.nickname = self.get_parameter("nickname").value
         self.use_multiple_cams = self.get_parameter("use_multiple_cams").value
-        self.timing_window = self.get_parameter("timing_window").value
+        timing_window = self.get_parameter("timing_window").value
+        self.timing_fifo = TimingFifo(timing_window)
         config_path = self.get_parameter("config_path").value
         
         assert self.base_link_frame_id != "", "base_link_frame_id must be set"
@@ -174,8 +175,8 @@ class RomanMapNode(Node):
                 len(self.mapper.inactive_segments) + \
                 len(self.mapper.segment_graveyard)
         self.log_and_send_status((f"Map size: {map_size}, "
-            f"Avg time (ms): {np.round(np.mean(self.timing_fifo)*1000)}")
-            if len(self.timing_fifo) > 0 else "Map size: 0",)
+            f"Avg time (ms): {np.round(self.timing_fifo.mean()*1000)}")
+            if len(self.timing_fifo) > 0 else f"Map size: {map_size}",)
         self.pulse_pub.publish(std_msgs.Empty())
         
         if len(obs_array_msg.observations) == 0:
@@ -212,8 +213,7 @@ class RomanMapNode(Node):
         if self.publish_active_segments:
             for segment in self.mapper.segments:
                 self.publish_segment(segment)
-        self.timing_fifo += [time.time() - start_t]
-        self.timing_fifo = self.timing_fifo[-self.timing_window:]
+        self.timing_fifo.update(time.time() - start_t)
         
     def publish_segment(self, segment: Segment):
         if self.object_ref == 'bottom_middle':

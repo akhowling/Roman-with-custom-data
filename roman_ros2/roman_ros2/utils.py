@@ -254,3 +254,19 @@ def lc_to_msg(robot_id1: int, robot_id2: int, submap1: Submap, submap2: Submap,
     lc_msg.covariance = covariance.reshape(-1).tolist()
     
     return lc_msg
+
+
+class TimingFifo:
+    def __init__(self, max_size: int):
+        self.max_size = max_size
+        self.data = []
+    
+    def update(self, value: float):
+        self.data.append(value)
+        self.data = self.data[-self.max_size:]
+    
+    def mean(self) -> float:
+        return np.mean(self.data) if self.data else 0.0
+    
+    def __len__(self) -> int:
+        return len(self.data)

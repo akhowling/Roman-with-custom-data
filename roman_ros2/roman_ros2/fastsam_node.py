@@ -32,7 +32,7 @@ from roman.map.fastsam_wrapper import FastSAMWrapper
 from roman.params.fastsam_params import FastSAMParams
 
 # relative
-from roman_ros2.utils import observation_to_msg
+from roman_ros2.utils import observation_to_msg, TimingFifo
 
 class FastSAMNode(Node):
 
@@ -41,7 +41,6 @@ class FastSAMNode(Node):
         
         # internal variables
         self.bridge = cv_bridge.CvBridge()
-        self.times_fifo = []
 
         # ros params
         self.declare_parameters(
@@ -61,7 +60,8 @@ class FastSAMNode(Node):
         self.odom_base_frame_id = self.get_parameter("odom_base_frame_id").value
         self.min_dt = self.get_parameter("min_dt").value
         self.nickname = self.get_parameter("nickname").value
-        self.timing_window = self.get_parameter("timing_window").value
+        timing_window = self.get_parameter("timing_window").value
+        self.timing_fifo = TimingFifo(timing_window)
         config_path = self.get_parameter("config_path").value
 
         # self.visualize = self.get_parameter("fastsam_viz").value
@@ -134,7 +134,6 @@ class FastSAMNode(Node):
         """
         
         start_t = time.time()
-        self.get_logger().info("Received messages")
         img_msg, depth_msg = msgs
         if self.cam_frame_id is None:
             self.cam_frame_id = img_msg.header.frame_id
@@ -176,13 +175,11 @@ class FastSAMNode(Node):
         )
         self.obs_pub.publish(observation_array)
 
-        avg_t = self.get_avg_processing_time(time.time() - start_t)
+        self.timing_fifo.update(time.time() - start_t)
+        avg_t = self.timing_fifo.mean()
         self.log_and_send_status(
             f"Windowed image processing rate: {np.round(1 / avg_t, 3)} Hz", 
             status=NodeInfoMsg.NOMINAL)
-
-        # if self.visualize:
-        #     self.pub_ptclds(observations, img_msg.header, depth)
 
         return
     
@@ -197,14 +194,6 @@ class FastSAMNode(Node):
         status_msg.status = status
         status_msg.notes = note
         self.status_pub.publish(status_msg)
-
-    def get_avg_processing_time(self, last_time):
-        """
-        Get the average timing of the last n observations.
-        """
-        self.times_fifo.append(last_time)
-        self.times_fifo = self.times_fifo[-self.timing_window:]
-        return np.mean(np.array(self.times_fifo))
 
 def main():
 
