@@ -4,6 +4,7 @@ import os
 from scipy.spatial.transform import Rotation as Rot
 import struct
 import open3d as o3d
+import time
 
 # ROS imports
 import rclpy
@@ -31,7 +32,7 @@ from roman.map.fastsam_wrapper import FastSAMWrapper
 from roman.params.fastsam_params import FastSAMParams
 
 # relative
-from roman_ros2.utils import observation_to_msg
+from roman_ros2.utils import observation_to_msg, TimingFifo
 
 class FastSAMNode(Node):
 
@@ -49,8 +50,8 @@ class FastSAMNode(Node):
                 ("odom_base_frame_id", "base"),
                 ("config_path", ""),
                 ("min_dt", 0.1),
-                ("nickname", "fastsam")
-                # ("fastsam_viz", False),
+                ("nickname", "fastsam"),
+                ("timing_window", 10),
             ]
         )
 
@@ -59,6 +60,8 @@ class FastSAMNode(Node):
         self.odom_base_frame_id = self.get_parameter("odom_base_frame_id").value
         self.min_dt = self.get_parameter("min_dt").value
         self.nickname = self.get_parameter("nickname").value
+        timing_window = self.get_parameter("timing_window").value
+        self.timing_fifo = TimingFifo(timing_window)
         config_path = self.get_parameter("config_path").value
 
         # self.visualize = self.get_parameter("fastsam_viz").value
@@ -130,7 +133,7 @@ class FastSAMNode(Node):
         depth image message are received.
         """
         
-        self.get_logger().info("Received messages")
+        start_t = time.time()
         img_msg, depth_msg = msgs
         if self.cam_frame_id is None:
             self.cam_frame_id = img_msg.header.frame_id
@@ -144,7 +147,7 @@ class FastSAMNode(Node):
 
         try:
             # self.tf_buffer.waitForTransform(self.map_frame_id, self.cam_frame_id, img_msg.header.stamp, rospy.Duration(0.5))
-            transform_stamped_msg = self.tf_buffer.lookup_transform(self.map_frame_id, self.cam_frame_id, img_msg.header.stamp, rclpy.duration.Duration(seconds=2.0))
+            transform_stamped_msg = self.tf_buffer.lookup_transform(self.map_frame_id, self.cam_frame_id, img_msg.header.stamp, rclpy.duration.Duration(seconds=1.0))
             flu_transformed_stamped_msg = self.tf_buffer.lookup_transform(self.map_frame_id, self.odom_base_frame_id, img_msg.header.stamp, rclpy.duration.Duration(seconds=0.1))
         except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException) as ex:
             self.log_and_send_status("tf lookup failed", status=NodeInfoMsg.WARNING)
@@ -171,10 +174,12 @@ class FastSAMNode(Node):
             observations=observation_msgs
         )
         self.obs_pub.publish(observation_array)
-        self.log_and_send_status("Processed callback", status=NodeInfoMsg.NOMINAL)
 
-        # if self.visualize:
-        #     self.pub_ptclds(observations, img_msg.header, depth)
+        self.timing_fifo.update(time.time() - start_t)
+        avg_t = self.timing_fifo.mean()
+        self.log_and_send_status(
+            f"Windowed image processing rate: {np.round(1 / avg_t, 3)} Hz", 
+            status=NodeInfoMsg.NOMINAL)
 
         return
     

@@ -19,6 +19,7 @@ from rcl_interfaces.msg import ParameterDescriptor
 from rclpy.qos import QoSProfile
 import tf2_ros
 from rclpy.executors import MultiThreadedExecutor
+import time
 
 # ROS msgs
 import std_msgs.msg as std_msgs
@@ -39,7 +40,8 @@ from roman.object.segment import Segment
 from roman.viz import visualize_map_on_img
 
 # relative
-from roman_ros2.utils import observation_from_msg, segment_to_msg, time_stamp_to_float
+from roman_ros2.utils import observation_from_msg, segment_to_msg, \
+    time_stamp_to_float, TimingFifo
 
 class RomanMapNode(Node):
 
@@ -61,6 +63,7 @@ class RomanMapNode(Node):
                 ("publish_active_segments", False),
                 ("nickname", "roman_map"),
                 ("use_multiple_cams", False),
+                ("timing_window", 10),
                 ("viz_num_objs", 20),
                 ("viz_pts_per_obj", 250),
                 ("viz_min_viz_dt", 2.0),
@@ -77,6 +80,8 @@ class RomanMapNode(Node):
         self.publish_active_segments = self.get_parameter("publish_active_segments").value
         self.nickname = self.get_parameter("nickname").value
         self.use_multiple_cams = self.get_parameter("use_multiple_cams").value
+        timing_window = self.get_parameter("timing_window").value
+        self.timing_fifo = TimingFifo(timing_window)
         config_path = self.get_parameter("config_path").value
         
         assert self.base_link_frame_id != "", "base_link_frame_id must be set"
@@ -169,12 +174,15 @@ class RomanMapNode(Node):
         map_size = len(self.mapper.segments) + \
                 len(self.mapper.inactive_segments) + \
                 len(self.mapper.segment_graveyard)
-        self.log_and_send_status(f"Map size: {map_size}")
+        self.log_and_send_status((f"Map size: {map_size}, "
+            f"Avg time (ms): {np.round(self.timing_fifo.mean()*1000)}")
+            if len(self.timing_fifo) > 0 else f"Map size: {map_size}",)
         self.pulse_pub.publish(std_msgs.Empty())
         
         if len(obs_array_msg.observations) == 0:
             return
         
+        start_t = time.time()
         observations = []
         for obs_msg in obs_array_msg.observations:
             observations.append(observation_from_msg(obs_msg))
@@ -205,6 +213,7 @@ class RomanMapNode(Node):
         if self.publish_active_segments:
             for segment in self.mapper.segments:
                 self.publish_segment(segment)
+        self.timing_fifo.update(time.time() - start_t)
         
     def publish_segment(self, segment: Segment):
         if self.object_ref == 'bottom_middle':
