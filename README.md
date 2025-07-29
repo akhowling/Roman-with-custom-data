@@ -40,8 +40,13 @@ colcon build
 
 #### Step 2: Install ROMAN Python package
 
-First, **activate the python environment** you would like to use with ROMAN.
-For example, you can build and source a Python virtual environment with `python3 -m venv ~/roman_ws/venv && source ~/roman_ws_venv/bin/activate`.
+First, **activate the python environment** you would like to use with ROMAN. For example, build and source a python virtual environment as follows:
+
+```
+python3 -m venv ./venv
+touch ./venv/COLCON_IGNORE # so that colcon does not try to build packages in the environment
+source ./venv/bin/activate
+```
 
 Once your environment has been activated, run
 
@@ -74,6 +79,14 @@ export ROMAN_ENV_ACTIVATE=<environment activation command>
 ```
 
 If you used a Python virtual environment as described above, this would look something like: `export ROMAN_ENV_ACTIVATE="source ~/roman_ws/venv/bin/activate"`
+
+#### Step 4: Build the ROS2 workspace
+
+Note that `roman_ros2` currently requires that `--simlink-install` option is not used when building. In `~/roman_ws` or the root of your workspace location, run:
+
+```
+colcon build
+```
 
 # Examples
 
