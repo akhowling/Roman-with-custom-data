@@ -158,8 +158,10 @@ class LCVizNode(ROMANLoopClosureNodeBaseClass):
             points_i = points[i].astype(np.int32).reshape((-1,1,2))
             img = cv.polylines(img, [points_i], isClosed=False, color=colors[i], thickness=2)
 
-        img = cv.putText(img, f"loop closure between {lc_msg.robot1_id} and {lc_msg.robot2_id}", (10,15),
+        img = cv.putText(img, f"loop closure between {lc_msg.robot1_id} and {lc_msg.robot2_id}", (10, self.img_dim - 2*15),
                    cv.FONT_HERSHEY_SIMPLEX, 0.5, (0,0,0), 1, cv.LINE_AA)
+        img = cv.putText(img, f"{lc_msg.num_associations} matched objects", (10, self.img_dim - 15),
+                    cv.FONT_HERSHEY_SIMPLEX, 0.5, (0,0,0), 1, cv.LINE_AA)
         f_name = f"robots_{lc_msg.robot1_id}_{lc_msg.robot2_id}_submaps_{lc_msg.submap1_id}_{lc_msg.submap2_id}.png"
         cv.imwrite(str(self.output_dir / f_name), img)
         img_msg = self.bridge.cv2_to_imgmsg(img, encoding="bgr8")
