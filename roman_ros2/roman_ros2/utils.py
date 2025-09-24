@@ -59,7 +59,7 @@ def observation_from_msg(observation_msg: roman_msgs.Observation):
         ) if observation_msg.mask else None,
         point_cloud=(np.array(observation_msg.point_cloud).reshape((-1, 3)) 
                      if observation_msg.point_cloud else None),
-        clip_embedding=(np.array(observation_msg.descriptor).reshape((-1,))
+        semantic_descriptor=(np.array(observation_msg.descriptor).reshape((-1,))
                         if observation_msg.descriptor else None),
     )
     return observation
@@ -86,7 +86,7 @@ def observation_to_msg(observation: Observation):
         mask=observation.mask_downsampled.flatten().astype(np.int8).tolist() if observation.mask is not None else None,
         point_cloud=(observation.point_cloud.flatten().tolist() 
                      if observation.point_cloud is not None else None),
-        descriptor=observation.clip_embedding.flatten().tolist() if observation.clip_embedding is not None else [],
+        descriptor=observation.semantic_descriptor.flatten().tolist() if observation.semantic_descriptor is not None else [],
     )
     return observation_msg
 
