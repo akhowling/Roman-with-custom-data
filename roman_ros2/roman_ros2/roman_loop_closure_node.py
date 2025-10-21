@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from typing import List
 from copy import deepcopy
 import time
+import os
 
 # ROS imports
 import rclpy
@@ -121,23 +122,24 @@ class ROMANLoopClosureNodeBaseClass(Node):
             namespace='',
             parameters=[
                 ("config_path", ""),
-                ("submap_num_segments", 40),
-                ("submap_overlapping_segments", 20),
-                ("lc_required_associations", 6),
-                ("nickname", "roman_lc"),
-                ("lc_std_dev_rotation_deg", 1.0),
-                ("lc_std_dev_translation_m", 0.5),
-                ('submap_knn', -1), 
-                ("ego_id", 0),
-                ("ego_name", ""),
-                ("ego_flu_ref_frame", ""),
-                ("ego_odom_frame", ""),
-                ("team_ids", [1]), # later we make this default to [] but ROS won't allow that
-                ("team_names", ['']), # later we make this default to [] but ROS won't allow that
-                ("team_flu_ref_frames", ['']), # later we make this default to [] but ROS won't allow that
-                ("team_odom_frames", ['']), # later we make this default to [] but ROS won't allow that
-                ("prior_session_maps", ['']), # later we make this default to [] but ROS won't allow that
-                ("prior_session_ids", [-1]) # later we make this default to [] but ROS won't allow that
+                ("submap_num_segments", 40), # number of segments to create a submap from
+                ("submap_overlapping_segments", 20), # number of overlapping segments between submaps
+                ("lc_required_associations", 6), # minimum number of associations to accept a loop closure
+                ("nickname", "roman_lc"), # node nickname for status messages
+                ("lc_std_dev_rotation_deg", 1.0), # standard deviation for rotation in degrees
+                ("lc_std_dev_translation_m", 0.5), # standard deviation for translation in meters
+                ('submap_knn', -1), # number of nearest neighbor submaps to consider for registration, -1 for all
+                ("ego_id", 0), # robot id of the ego robot
+                ("ego_name", ""), # robot name of the ego robot
+                ("ego_flu_ref_frame", ""), # ego robot body reference frame that generally has Z point roughly up
+                ("ego_odom_frame", ""), # ego robot odometry frame
+                # NOTE: for the following prameters, [''] is a placeholder for [] because ROS2 does not allow empty lists as default params
+                ("team_ids", [1]), # integer ids for online robots
+                ("team_names", ['']), # string names for online robots
+                ("team_flu_ref_frames", ['']), # robot body reference frames that generally have Z point roughly up
+                ("team_odom_frames", ['']), # robot odometry frames
+                ("prior_session_maps", ['']), # Prior session map paths or a single directory with numbered prior maps
+                ("prior_session_ids", [-1]) # Prior session map ids. Not needed if prior session maps is a directory
             ]
         )
         
@@ -169,6 +171,21 @@ class ROMANLoopClosureNodeBaseClass(Node):
         if self.prior_session_maps == ['']:
             self.prior_session_ids = []
             self.prior_session_maps = []
+        # if prior session maps is a directory, load all .pkl files in the directory
+        if os.path.isdir(self.prior_session_maps[0]):
+            prior_map_dir = self.prior_session_maps[0]
+            self.prior_session_maps = []
+            self.prior_session_ids = []
+            for file_name in os.listdir(prior_map_dir):
+                if file_name.endswith('.roman_map.pkl'):
+                    map_path = os.path.join(prior_map_dir, file_name)
+                    try:
+                        robot_id = int(file_name.split('.roman_map.pkl')[0])
+                    except ValueError:
+                        self.get_logger().warning(f"Could not parse robot id from prior map file name: {file_name}. Skipping.")
+                        continue
+                    self.prior_session_maps.append(map_path)
+                    self.prior_session_ids.append(robot_id)
 
         # organize multi-robot metadata
         self.live_names = [self.ego_name] + self.team_names
@@ -195,7 +212,8 @@ class ROMANLoopClosureNodeBaseClass(Node):
         assert len(self.prior_session_maps) == len(self.prior_session_ids), \
             "ERROR: prior_session_maps and prior_session_ids must be the same length."
         assert len(set(self.all_ids)) == len(self.all_ids), \
-            "ERROR: all robot ids must be unique. Check team_ids and prior_session_ids."
+            f"ERROR: all robot ids must be unique. Current team_ids: {self.team_ids}, " + \
+            f"prior_session_ids: {self.prior_session_ids}."
 
 class ROMANLoopClosureNode(ROMANLoopClosureNodeBaseClass):
 
