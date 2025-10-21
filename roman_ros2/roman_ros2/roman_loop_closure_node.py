@@ -127,6 +127,7 @@ class ROMANLoopClosureNodeBaseClass(Node):
                 ("nickname", "roman_lc"),
                 ("lc_std_dev_rotation_deg", 1.0),
                 ("lc_std_dev_translation_m", 0.5),
+                ('submap_knn', -1), 
                 ("ego_id", 0),
                 ("ego_name", ""),
                 ("ego_flu_ref_frame", ""),
@@ -146,6 +147,7 @@ class ROMANLoopClosureNodeBaseClass(Node):
         self.lc_required_associations = self.get_parameter("lc_required_associations").value
         self.lc_std_dev_rotation_deg = self.get_parameter("lc_std_dev_rotation_deg").value
         self.lc_std_dev_translation_m = self.get_parameter("lc_std_dev_translation_m").value
+        self.submap_knn = self.get_parameter("submap_knn").value
         self.nickname = self.get_parameter("nickname").value
         self.ego_id = self.get_parameter("ego_id").value
         self.ego_name = self.get_parameter("ego_name").value
@@ -179,6 +181,9 @@ class ROMANLoopClosureNodeBaseClass(Node):
         self.odom_frames = {robot_id: robot_odom_frame
             for robot_id, robot_odom_frame in 
             zip(self.live_ids, [self.ego_odom_frame] + self.team_odom_frames)}
+
+        if self.submap_knn < 0:
+            self.submap_knn = None
 
         # check params
         assert self.ego_name != "", "ERROR: ego_robot_name param must be set."
@@ -232,6 +237,9 @@ class ROMANLoopClosureNode(ROMANLoopClosureNodeBaseClass):
             self.submaps[prior_id] = submaps
             self.log_and_send_status(f"Loaded {len(submaps)} submaps for robot {prior_id} from {map_path}.", 
                                      status=NodeInfoMsg.STARTUP)
+        
+        # Check params
+        assert self.submap_knn is None or self.submap_align_params.submap_descriptor is not None
         
         self.setup_ros()
         self.log_and_send_status("ROMAN Loop Closure Node setup complete.", status=NodeInfoMsg.STARTUP)
@@ -344,7 +352,14 @@ class ROMANLoopClosureNode(ROMANLoopClosureNodeBaseClass):
 
     def run_submap_registration(self, submap: Submap, robot_id: int, other_id: int):
         submap2: Submap
-        for submap2 in self.submaps[other_id]:
+
+        other_submaps = self.submaps[other_id]
+        if self.submap_knn is not None and self.submap_align_params.submap_descriptor == 'mean_semantic':
+            other_submaps = sorted(other_submaps, 
+                key=lambda sm: -np.dot(submap.descriptor.reshape(-1), sm.descriptor.reshape(-1))
+            )[:self.submap_knn]
+
+        for submap2 in other_submaps:
             # check if submap2 is already registered
             if submap2.id == submap.id and robot_id == other_id:
                 continue
