@@ -172,7 +172,8 @@ class ROMANLoopClosureNodeBaseClass(Node):
             self.prior_session_ids = []
             self.prior_session_maps = []
         # if prior session maps is a directory, load all .pkl files in the directory
-        if os.path.isdir(self.prior_session_maps[0]):
+        if len(self.prior_session_maps) > 0 and \
+                os.path.isdir(self.prior_session_maps[0]):
             prior_map_dir = self.prior_session_maps[0]
             self.prior_session_maps = []
             self.prior_session_ids = []
@@ -378,7 +379,7 @@ class ROMANLoopClosureNode(ROMANLoopClosureNodeBaseClass):
             )[:self.submap_knn]
 
         for submap2 in other_submaps:
-            # check if submap2 is already registered
+            # check if submap and submap2 are the same
             if submap2.id == submap.id and robot_id == other_id:
                 continue
 

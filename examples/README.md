@@ -61,20 +61,14 @@ This functionality enables re-running if a single sessions needs to be re-run bu
 
 ## `roman_ros2` on bagged data
 
-An example tmux file is included for running ROMAN mapping using D455 RGB-D images.
+An example tmux file is included for running ROMAN mapping using D455 RGB-D images. This example allows you to first create an initial map (and find loop closures while performing initial mapping). If you have a second bag in the same area, you can perform loop closures to the prior map as well.
 
-To run this example, first install `tmuxp` (`sudo apt install tmuxp`) and set the following environment variables:
+To run the session, run [this file](./d455_bag/run_single_session.sh):
 
-```
-export ROBOT=<robot name>
-export CAMERA=<camera name>
-export BAG=<path to bag file>
-export ROMAN_WS=<path to ROS2 workspace where roman_ros2 is installed>
-export ACTIVATE_ROMAN_ENV=<command to activate python environment where roman is installed>
-```
+`./run_single_session.sh <bag path> <output directory (optional)>`
 
-Inside of this directory, run the following command to launch ROMAN:
+Rviz will pop up for visualizing the mapping. Visualizations of the loop closures will he saved to the output directory. Once the bag has finished, press enter in the bottom tmux pane and that will save the ROMAN map into the output directory and close the tmux.
 
-```
-tmuxp load ./roman_ros2/tmux/example.yaml
-```
+To run a second session with loop closures to a prior map, run [this file](./d455_bag/run_with_prior_map.sh):
+
+`./run_with_prior_map.sh <bag path> <prior map path> <output directory (optional)>`.

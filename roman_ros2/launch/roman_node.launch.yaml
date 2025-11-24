@@ -1,7 +1,8 @@
 ---
 launch:
   - arg: {name: robot_name}
-  - arg: {name: camera}
+  - arg: {name: config_dir}
+  - arg: {name: sim_time, default: "false"}
   - arg: {name: output_dir, default: "~/.roman_ros2"}
   - arg: {name: launch_fastsam, default: "false"}
   - arg: {name: launch_mapping, default: "false"}
@@ -15,9 +16,9 @@ launch:
       name: fastsam_node
       namespace: $(var robot_name)
       param:
-        - from: $(find-pkg-share roman_ros2)/cfg/$(var camera)/fastsam_node.yaml
+        - from: $(var config_dir)/fastsam_node.yaml
           allow_substs: true
-        - {name: config_path, value: $(find-pkg-share roman_ros2)/cfg/$(var camera)/fastsam.yaml}
+        - {name: config_path, value: $(var config_dir)/fastsam.yaml}
 
   - node:
       if: $(var launch_mapping)
@@ -26,7 +27,7 @@ launch:
       name: roman_map_node
       namespace: $(var robot_name)
       param:
-        - from: $(find-pkg-share roman_ros2)/cfg/$(var camera)/roman_map_node.yaml
+        - from: $(var config_dir)/roman_map_node.yaml
           allow_substs: true
         - {name: output_roman_map, value: $(var output_dir)/roman_map.pkl}
 
@@ -37,9 +38,9 @@ launch:
       name: roman_lc_node
       namespace: $(var robot_name)
       param:
-        - from: $(find-pkg-share roman_ros2)/cfg/$(var camera)/roman_loop_closure_node.yaml
+        - from: $(var config_dir)/roman_loop_closure_node.yaml
           allow_substs: true
-        - {name: config_path, value: $(find-pkg-share roman_ros2)/cfg/$(var camera)/roman_loop_closure.yaml}
+        - {name: config_path, value: $(var config_dir)/roman_loop_closure.yaml}
 
   - node:
       if: $(var launch_loop_closure_viz)
@@ -48,7 +49,7 @@ launch:
       name: lc_viz_node
       namespace: $(var robot_name)
       param:
-        - from: $(find-pkg-share roman_ros2)/cfg/$(var camera)/roman_loop_closure_node.yaml
+        - from: $(var config_dir)/roman_loop_closure_node.yaml
           allow_substs: true
-        - {name: config_path, value: $(find-pkg-share roman_ros2)/cfg/$(var camera)/roman_loop_closure.yaml}
+        - {name: config_path, value: $(var config_dir)/roman_loop_closure.yaml}
         - {name: output_dir, value: $(var output_dir)}
