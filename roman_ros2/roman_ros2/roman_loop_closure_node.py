@@ -33,11 +33,17 @@ from roman.align.object_registration import InsufficientAssociationsException
 
 from roman.params.submap_align_params import SubmapAlignParams
 from roman.utils import transform_rm_roll_pitch
-from roman.map.map import Submap, ROMANMap, submaps_from_roman_map, SubmapParams
+from roman.map.map import Submap, ROMANMap, submaps_from_roman_map, extract_submap_descriptors, SubmapParams
 
 # Local imports
-from roman_ros2.utils import msg_to_segment, float_to_ros_time, lc_to_pose_graph_msg, \
+from roman_ros2.utils import msg_to_segment, frame_descriptor_from_msg, float_to_ros_time, lc_to_pose_graph_msg, \
     lc_to_msg
+
+@dataclass
+class FrameDescriptor():
+    descriptor: np.ndarray
+    pose: np.ndarray
+    time: float
 
 @dataclass
 class SegmentUpdateResult():
@@ -239,20 +245,22 @@ class ROMANLoopClosureNode(ROMANLoopClosureNodeBaseClass):
         self.submaps = {live_id: [] for live_id in self.live_ids}
         self.times = {live_id: [] for live_id in self.live_ids}
         self.poses = {live_id: [] for live_id in self.live_ids}
+        self.descriptors = {live_id: [] for live_id in self.live_ids}
 
         if self.config_path == "":
             self.submap_align_params = SubmapAlignParams()
         else:
             self.submap_align_params = SubmapAlignParams.from_yaml(self.config_path)
 
+        self.submap_params = SubmapParams.from_submap_align_params(self.submap_align_params)
+        
         self.roman_reg = self.submap_align_params.get_object_registration()
 
         # load prior session maps
         self.log_and_send_status("Loading prior maps.", status=NodeInfoMsg.STARTUP)
         for prior_id, map_path in zip(self.prior_session_ids, self.prior_session_maps):
             prior_map = ROMANMap.from_pickle(map_path)
-            submap_params = SubmapParams.from_submap_align_params(self.submap_align_params)
-            submaps = submaps_from_roman_map(prior_map, submap_params)
+            submaps = submaps_from_roman_map(prior_map, self.submap_params)
             self.submaps[prior_id] = submaps
             self.log_and_send_status(f"Loaded {len(submaps)} submaps for robot {prior_id} from {map_path}.", 
                                      status=NodeInfoMsg.STARTUP)
@@ -276,6 +284,12 @@ class ROMANLoopClosureNode(ROMANLoopClosureNodeBaseClass):
             self.create_subscription(roman_msgs.Segment, f"/{robot_name}/roman/segment_updates", 
                                      lambda msg: self.seg_cb(msg, robot_id), 20)
         for robot_name, robot_id in zip(self.live_names, self.live_ids)]
+
+        if self.submap_align_params.submap_descriptor is not None:
+            self.descriptor_subs = [
+                self.create_subscription(roman_msgs.FrameDescriptor, f"/{robot_name}/roman/frame_descriptor", 
+                                        lambda msg: self.descriptor_cb(msg, robot_id), 20)
+            for robot_name, robot_id in zip(self.live_names, self.live_ids)]
 
         # tf buffer
         self.tf_buffer = tf2_ros.Buffer()
@@ -346,6 +360,24 @@ class ROMANLoopClosureNode(ROMANLoopClosureNodeBaseClass):
             submap.descriptor = \
                 np.mean([seg.semantic_descriptor.flatten() for seg in submap.segments], axis=0)
             submap.descriptor /= np.linalg.norm(submap.descriptor)
+        elif self.submap_align_params.submap_descriptor is not None:
+            # sort descriptor buffer
+            sorted_descriptors = sorted(self.descriptors[robot_id])
+            descriptor_times, descriptor_poses, descriptors = zip(*sorted_descriptors)
+
+            # extract submap descriptor
+            extract_submap_descriptors(
+                submaps=[submap],
+                descriptor_times=descriptor_times,
+                descriptors=descriptors,
+                poses=descriptor_poses,
+                submap_params=self.submap_params
+            )
+
+            # refresh descriptor buffer
+            pd = PoseData.from_times_and_poses(descriptor_times, descriptor_poses, interp=False, time_tol=1e3, causal=True)
+            earliest_seen_idx = pd.idx(self.segment_queues[robot_id].earliest_seen + self.time_eps)
+            self.descriptors[robot_id] = list(sorted_descriptors)[earliest_seen_idx:]
 
         self.submaps[robot_id].append(submap)
 
@@ -368,14 +400,19 @@ class ROMANLoopClosureNode(ROMANLoopClosureNodeBaseClass):
             self.log_and_send_status(f"No loop closures found for robot {robot_id}, submap {submap.id}. Detection time: {self.last_lc_time} ms")
         self.new_lc_flag = False
             
+    def descriptor_cb(self, descriptor_msg: roman_msgs.FrameDescriptor, robot_id: int):
+        """
+        Callback function for frame descriptor messages.
+        """
+        self.descriptors[robot_id].append(frame_descriptor_from_msg(descriptor_msg)) # (time, pose, descriptor)
 
     def run_submap_registration(self, submap: Submap, robot_id: int, other_id: int):
         submap2: Submap
 
         other_submaps = self.submaps[other_id]
-        if self.submap_knn is not None and self.submap_align_params.submap_descriptor == 'mean_semantic':
+        if self.submap_knn is not None and self.submap_align_params.submap_descriptor is not None:
             other_submaps = sorted(other_submaps, 
-                key=lambda sm: -np.dot(submap.descriptor.reshape(-1), sm.descriptor.reshape(-1))
+                key=lambda sm: Submap.similarity(submap, sm)
             )[:self.submap_knn]
 
         for submap2 in other_submaps:
@@ -383,9 +420,8 @@ class ROMANLoopClosureNode(ROMANLoopClosureNodeBaseClass):
             if submap2.id == submap.id and robot_id == other_id:
                 continue
 
-            if self.submap_align_params.submap_descriptor == 'mean_semantic':
-                if np.dot(submap.descriptor.reshape(-1), submap2.descriptor.reshape(-1)) \
-                        < self.submap_align_params.submap_descriptor_thresh:
+            if self.submap_align_params.submap_descriptor is not None:
+                if Submap.similarity(submap, submap2) < self.submap_align_params.submap_descriptor_thresh:
                     continue
 
             # run registration
