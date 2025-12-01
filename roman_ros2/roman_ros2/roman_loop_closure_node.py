@@ -410,19 +410,28 @@ class ROMANLoopClosureNode(ROMANLoopClosureNodeBaseClass):
         submap2: Submap
 
         other_submaps = self.submaps[other_id]
+        
+        # prohibit removing a submap with itself
+        if robot_id == other_id:
+            other_submaps = [submap2 for submap2 in other_submaps if submap2.id != submap.id]
+
+        # get k nearest neighbors in terms of submap similarity
         if self.submap_knn is not None and self.submap_align_params.submap_descriptor is not None:
             other_submaps = sorted(other_submaps, 
-                key=lambda sm: Submap.similarity(submap, sm)
+                key=lambda sm: Submap.similarity(submap, sm),
+                reverse=True
             )[:self.submap_knn]
+        
+        # reject submaps with similarity lower than threshold
+        if self.submap_align_params.submap_descriptor is not None:
+            other_submaps = [submap2 for submap2 in other_submaps 
+                             if Submap.similarity(submap, submap2) > 
+                             self.submap_align_params.submap_descriptor_thresh]
+
+        self.log_and_send_status(f"Attempting to register {len(other_submaps)} " + 
+                                 f"submaps between robot ids: ({robot_id}, {other_id})")
 
         for submap2 in other_submaps:
-            # check if submap and submap2 are the same
-            if submap2.id == submap.id and robot_id == other_id:
-                continue
-
-            if self.submap_align_params.submap_descriptor is not None:
-                if Submap.similarity(submap, submap2) < self.submap_align_params.submap_descriptor_thresh:
-                    continue
 
             # run registration
             try:

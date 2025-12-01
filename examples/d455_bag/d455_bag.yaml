@@ -38,6 +38,7 @@ windows:
   - source $ROMAN_ROS_WS/install/setup.zsh
   - export RMW_IMPLEMENTATION=rmw_zenoh_cpp
   panes:
+  - ros2 run rmw_zenoh_cpp rmw_zenohd
   - ros2 bag play $ROMAN_BAG --clock 
   - ros2 run image_transport republish
     --ros-args -p in_transport:=compressed -p out_transport:=raw 

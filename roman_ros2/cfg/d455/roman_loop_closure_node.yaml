@@ -13,4 +13,5 @@
     team_odom_frames: ['']
     prior_session_maps: ['']
     prior_session_ids: [0]
+    submap_knn: 5
     use_sim_time: $(var sim_time)
