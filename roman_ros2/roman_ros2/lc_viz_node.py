@@ -73,6 +73,7 @@ class LCVizNode(ROMANLoopClosureNodeBaseClass):
         self.traj_num_pts = self.get_parameter("traj_num_pts").value
 
         assert self.aligned_traj_viz, "Only aligned trajectory visualizer currently supported."
+        self.get_logger().info(f"Saving loop closure visualizations to {str(self.output_dir )}")
 
         # internal variables
         self.trajectories = {id_i: None for id_i in self.all_ids}

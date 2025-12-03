@@ -2,3 +2,4 @@
   ros__parameters:
     odom_frame_id: odom
     base_flu_frame_id: zed_camera_link
+    use_sim_time: $(var sim_time)

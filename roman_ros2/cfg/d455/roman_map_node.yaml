@@ -7,3 +7,4 @@
     visualize: true
     viz_min_viz_dt: 0.25
     output_roman_map: ~/.roman_ros2/roman_map.pkl
+    use_sim_time: $(var sim_time)

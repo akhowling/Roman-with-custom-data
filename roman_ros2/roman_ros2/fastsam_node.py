@@ -32,7 +32,7 @@ from roman.map.fastsam_wrapper import FastSAMWrapper
 from roman.params.fastsam_params import FastSAMParams
 
 # relative
-from roman_ros2.utils import observation_to_msg, TimingFifo
+from roman_ros2.utils import observation_to_msg, descriptor_to_array_msg, frame_descriptor_to_msg, TimingFifo
 
 class FastSAMNode(Node):
 
@@ -84,6 +84,8 @@ class FastSAMNode(Node):
             fastsam_params = FastSAMParams.from_yaml(config_path)
         else:
             fastsam_params = FastSAMParams()
+        
+        self.publish_descriptor = fastsam_params.frame_descriptor is not None
             
         self.fastsam = FastSAMWrapper.from_params(fastsam_params, self.depth_params)
 
@@ -110,6 +112,8 @@ class FastSAMNode(Node):
         
         # ros publishers
         self.obs_pub = self.create_publisher(roman_msgs.ObservationArray, "roman/observations", qos_profile=QoSProfile(depth=10))
+        if self.publish_descriptor:
+            self.descriptor_pub = self.create_publisher(roman_msgs.FrameDescriptor, "roman/frame_descriptor", qos_profile=QoSProfile(depth=10))
 
         if self.visualize:
             self.ptcld_pub = self.create_publisher(sensor_msgs.PointCloud, "roman/observations/ptcld")
@@ -163,17 +167,22 @@ class FastSAMNode(Node):
         img = self.bridge.imgmsg_to_cv2(img_msg, desired_encoding='bgr8')
         depth = self.bridge.imgmsg_to_cv2(depth_msg)
 
-        observations = self.fastsam.run(t, pose, img, depth_data=depth)
+        observations, frame_descriptor = self.fastsam.run(t, pose, img, depth_data=depth)
 
         observation_msgs = [observation_to_msg(obs) for obs in observations]
+        frame_descriptor_arr_msg = descriptor_to_array_msg(frame_descriptor)
         
         observation_array = roman_msgs.ObservationArray(
             header=img_msg.header,
             pose=rnp.msgify(geometry_msgs.Pose, pose),
             pose_flu=rnp.msgify(geometry_msgs.Pose, pose_flu),
+            frame_descriptor=frame_descriptor_arr_msg,
             observations=observation_msgs
         )
         self.obs_pub.publish(observation_array)
+
+        if self.publish_descriptor:
+            self.descriptor_pub.publish(frame_descriptor_to_msg(frame_descriptor_arr_msg, img_msg.header.stamp, pose))
 
         self.timing_fifo.update(time.time() - start_t)
         avg_t = self.timing_fifo.mean()

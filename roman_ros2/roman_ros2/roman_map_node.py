@@ -40,7 +40,7 @@ from roman.object.segment import Segment
 from roman.viz import visualize_map_on_img
 
 # relative
-from roman_ros2.utils import observation_from_msg, segment_to_msg, \
+from roman_ros2.utils import observation_from_msg, descriptor_from_array_msg, segment_to_msg, \
     time_stamp_to_float, TimingFifo
 
 class RomanMapNode(Node):
@@ -199,8 +199,9 @@ class RomanMapNode(Node):
         else:
             pose = rnp.numpify(obs_array_msg.pose_flu) # base link frame
 
+        frame_descriptor = descriptor_from_array_msg(obs_array_msg.frame_descriptor)
 
-        self.mapper.update(time_stamp_to_float(obs_array_msg.header.stamp), pose, observations)
+        self.mapper.update(time_stamp_to_float(obs_array_msg.header.stamp), pose, observations, frame_descriptor)
         updated_inactive_ids = [segment.id for segment in self.mapper.inactive_segments]
         new_inactive_ids = [seg_id for seg_id in updated_inactive_ids if seg_id not in inactive_ids]
 

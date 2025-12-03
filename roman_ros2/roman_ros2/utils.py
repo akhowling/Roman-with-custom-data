@@ -1,7 +1,7 @@
 import numpy as np
 from scipy.spatial.transform import Rotation as Rot
 from dataclasses import dataclass
-from typing import Tuple
+from typing import Tuple, Union
 
 import rclpy
 from builtin_interfaces.msg import Time
@@ -37,6 +37,33 @@ def float_to_ros_time(float_time):
 
 def time_stamp_to_float(stamp):
     return rclpy.time.Time.from_msg(stamp).nanoseconds * 1e-9
+
+def numpy_to_float64_multiarray(array: np.ndarray) -> std_msgs.Float64MultiArray:
+    """
+    Convert a NumPy array to a ROS Float64MultiArray with proper layout (sizes and strides).
+    """
+    msg = std_msgs.Float64MultiArray()
+    msg.data = array.astype(np.float64).flatten().tolist() # store flattened data
+    msg.layout.data_offset = 0
+
+    dims = []
+    shape = array.shape
+    for i, size in enumerate(shape):
+        dim = std_msgs.MultiArrayDimension()
+        dim.label = f"dim{i}"
+        dim.size = size
+        dim.stride = int(np.prod(shape[i:]))
+        dims.append(dim)
+    msg.layout.dim = dims
+    return msg
+
+def float64_multiarray_to_numpy(msg: std_msgs.Float64MultiArray) -> np.ndarray:
+    """
+    Convert a ROS Float64MultiArray to a NumPy array using the layout information.
+    """
+    shape = tuple(dim.size for dim in msg.layout.dim)
+    array = np.array(msg.data, dtype=np.float64).reshape(shape)
+    return array
 
 def observation_from_msg(observation_msg: roman_msgs.Observation):
     """
@@ -89,6 +116,25 @@ def observation_to_msg(observation: Observation):
         descriptor=observation.semantic_descriptor.flatten().tolist() if observation.semantic_descriptor is not None else [],
     )
     return observation_msg
+
+def descriptor_to_array_msg(descriptor: Union[np.ndarray, None]) -> std_msgs.Float64MultiArray:
+    return numpy_to_float64_multiarray(descriptor) if descriptor is not None else std_msgs.Float64MultiArray()
+
+def descriptor_from_array_msg(descriptor_array_msg: std_msgs.Float64MultiArray) -> Union[np.ndarray, None]:
+    return float64_multiarray_to_numpy(descriptor_array_msg) if descriptor_array_msg.data else None
+
+def frame_descriptor_to_msg(descriptor_array_msg: std_msgs.Float64MultiArray, stamp, pose: np.ndarray) -> roman_msgs.FrameDescriptor:
+    descriptor_msg = roman_msgs.FrameDescriptor()
+    descriptor_msg.stamp = stamp
+    descriptor_msg.pose = rnp.msgify(geometry_msgs.Pose, pose)
+    descriptor_msg.descriptor = descriptor_array_msg
+    return descriptor_msg
+
+def frame_descriptor_from_msg(descriptor_msg: roman_msgs.FrameDescriptor) -> Tuple[float, np.ndarray, np.ndarray]:
+    descriptor = descriptor_from_array_msg(descriptor_msg.descriptor)
+    pose = rnp.numpify(descriptor_msg.pose)
+    time_stamp = time_stamp_to_float(descriptor_msg.stamp)
+    return time_stamp, pose, descriptor
 
 """
 segment.msg

@@ -16,3 +16,4 @@ semantics: 'dino'
 yolo_imgsz: [256, 256]
 depth_scale: 1.0
 max_depth: 6.0
+frame_descriptor: 'dino-gem'

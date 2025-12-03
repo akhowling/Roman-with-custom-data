@@ -1,0 +1,48 @@
+session_name: roman_ros2
+
+environment:
+  ROMAN_BAG: ${ROMAN_BAG}
+  ROMAN_OUTPUT_DIR: ${ROMAN_OUTPUT_DIR}
+  ROMAN_PRIOR_MAP: ${ROMAN_PRIOR_MAP}
+  ROMAN_ROS_WS: ${ROMAN_ROS_WS}
+  ROMAN_ENV_ACTIVATE: ${ROMAN_ENV_ACTIVATE}
+  ROMAN_CAMERA: d455
+  ROMAN_ROBOT_NAME: robot
+  ROMAN_LC_CONFIG_DIR: ${ROMAN_LC_CONFIG_DIR}
+
+options:
+  default-command: /bin/zsh
+
+windows:
+- window_name: roman
+  layout: tiled
+  shell_command_before:
+  - source $ROMAN_ROS_WS/install/setup.zsh
+  - export RMW_IMPLEMENTATION=rmw_zenoh_cpp
+  - $ROMAN_ENV_ACTIVATE
+  panes:
+  - ros2 launch roman_ros2 roman.launch.yaml robot_name:=$ROMAN_ROBOT_NAME camera:=$ROMAN_CAMERA
+    launch_fastsam:=true sim_time:=true
+  - ros2 launch roman_ros2 roman.launch.yaml robot_name:=$ROMAN_ROBOT_NAME camera:=$ROMAN_CAMERA
+    launch_mapping:=true output_dir:=$ROMAN_OUTPUT_DIR sim_time:=true
+  - ros2 launch roman_ros2 roman.launch.yaml robot_name:=$ROMAN_ROBOT_NAME camera:=$ROMAN_CAMERA
+    launch_loop_closure:=true launch_loop_closure_viz:=true config_dir:=$ROMAN_LC_CONFIG_DIR
+    output_dir:=$ROMAN_OUTPUT_DIR sim_time:=true
+  - rviz2 -d $ROMAN_ROS_WS/src/roman_ros2/examples/d455_single_session/d455_online.rviz
+  - echo "PRESS ENTER TO KILL";
+    tmux send-keys -t roman_ros2:roman.1 C-c && sleep 3 && tmux kill-session \
+
+- window_name: bag
+  layout: tiled
+  shell_command_before:
+  - source $ROMAN_ROS_WS/install/setup.zsh
+  - export RMW_IMPLEMENTATION=rmw_zenoh_cpp
+  panes:
+  - ros2 run rmw_zenoh_cpp rmw_zenohd
+  - ros2 bag play $ROMAN_BAG --clock 
+  - ros2 run image_transport republish
+    --ros-args -p in_transport:=compressed -p out_transport:=raw 
+    -r in/compressed:=$ROMAN_ROBOT_NAME/$ROMAN_CAMERA/color/image_raw/compressed 
+    -r out:=$ROMAN_ROBOT_NAME/$ROMAN_CAMERA/color/image_raw
+    
+    
