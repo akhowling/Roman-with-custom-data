@@ -1,0 +1,20 @@
+/uav/color/info:
+  history: keep_last
+  depth: 10
+  reliability: reliable
+  durability: volatile
+/uav/color/image:
+  history: keep_last
+  depth: 5
+  reliability: reliable
+  durability: volatile
+/uav/depth/info:
+  history: keep_last
+  depth: 10
+  reliability: reliable
+  durability: volatile
+/uav/depth/image:
+  history: keep_last
+  depth: 5
+  reliability: reliable
+  durability: volatile

@@ -1,0 +1,18 @@
+# ROS2/colcon
+build/
+install/
+log/
+
+# Python
+venv/
+__pycache__/
+*.pyc
+
+# ROS bags / big generated data (adjust if you really want these tracked)
+my_ros2_bag/
+ugv_rosbag/
+*.db3
+*.mcap
+
+# misc
+*.pkl

@@ -1,0 +1,20 @@
+/ugv/color_front/info:
+  history: keep_last
+  depth: 10
+  reliability: reliable
+  durability: volatile
+/ugv/color_front/image:
+  history: keep_last
+  depth: 5
+  reliability: reliable
+  durability: volatile
+/dummy_depth/info:
+  history: keep_last
+  depth: 10
+  reliability: reliable
+  durability: volatile
+/dummy_depth/image:
+  history: keep_last
+  depth: 5
+  reliability: reliable
+  durability: volatile
