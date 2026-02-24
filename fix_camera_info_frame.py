@@ -18,9 +18,15 @@ class CameraInfoFrameFix(Node):
         self.sub = self.create_subscription(CameraInfo, in_topic, self.cb, 10)
         self.get_logger().info(f"Relaying {in_topic} -> {out_topic} with frame_id='{self.frame_id}'")
 
+    # def cb(self, msg: CameraInfo):
+    #     msg.header.frame_id = self.frame_id
+    #     self.pub.publish(msg)
     def cb(self, msg: CameraInfo):
+        # msg.header.stamp = self.get_clock().now().to_msg()
+        msg.header.stamp = msg.header.stamp
         msg.header.frame_id = self.frame_id
         self.pub.publish(msg)
+
 
 def main():
     rclpy.init()

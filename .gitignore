@@ -16,3 +16,7 @@ ugv_rosbag/
 
 # misc
 *.pkl
+
+# TF / debug artifacts
+*.pdf
+*.gv
